@@ -277,7 +277,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1715886424495025786}
   m_Layer: 0
-  m_Name: paredTumbas
+  m_Name: SM_paredTumbas
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
