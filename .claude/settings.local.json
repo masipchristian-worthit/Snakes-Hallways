@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Blender__get_blendfile_summary_path_info",
+      "mcp__Blender__execute_blender_code",
+      "mcp__Blender__render_viewport_to_path"
+    ]
+  }
+}
