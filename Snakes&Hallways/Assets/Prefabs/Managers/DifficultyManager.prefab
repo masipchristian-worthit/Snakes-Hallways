@@ -1,0 +1,87 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3601165517050521834
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2780408488746234002}
+  - component: {fileID: 8103048722936643837}
+  m_Layer: 0
+  m_Name: DifficultyManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2780408488746234002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3601165517050521834}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8103048722936643837
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3601165517050521834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10848a53f33785e429f608f839678601, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DifficultyManager
+  current: 1
+  easy:
+    level: 0
+    pickupsRequired: 4
+    baseAggression: 0.1
+    omniscience: 0
+    roomSpawnChance: 0.2
+    postRoomSpawnDistance: 60
+    soundReactivity: 0
+    chaseSpeedMul: 0.85
+    hintFrequencyMul: 0.5
+  medium:
+    level: 1
+    pickupsRequired: 6
+    baseAggression: 0.35
+    omniscience: 0.1
+    roomSpawnChance: 0.33
+    postRoomSpawnDistance: 35
+    soundReactivity: 0.5
+    chaseSpeedMul: 1
+    hintFrequencyMul: 1
+  hard:
+    level: 2
+    pickupsRequired: 8
+    baseAggression: 0.6
+    omniscience: 0.35
+    roomSpawnChance: 0.5
+    postRoomSpawnDistance: 18
+    soundReactivity: 0.85
+    chaseSpeedMul: 1.15
+    hintFrequencyMul: 1.6
+  impossible:
+    level: 3
+    pickupsRequired: 10
+    baseAggression: 1
+    omniscience: 1
+    roomSpawnChance: 0.75
+    postRoomSpawnDistance: 8
+    soundReactivity: 1
+    chaseSpeedMul: 1.3
+    hintFrequencyMul: 2.5
