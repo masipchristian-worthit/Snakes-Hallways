@@ -3,7 +3,19 @@
     "allow": [
       "mcp__Blender__get_blendfile_summary_path_info",
       "mcp__Blender__execute_blender_code",
-      "mcp__Blender__render_viewport_to_path"
+      "mcp__Blender__render_viewport_to_path",
+      "mcp__Blender__get_objects_summary",
+      "mcp__Blender__get_object_detail_summary",
+      "mcp__Blender__get_screenshot_of_window_as_image",
+      "mcp__Blender__jump_to_view3d_object_by_name",
+      "mcp__Blender__get_screenshot_of_area_as_image",
+      "Bash(ls \"C:\\\\Users\\\\coin\\\\Desktop\\\\MonedasFBX\\\\\")",
+      "Bash(ls 'C:\\\\Users\\\\coin\\\\Desktop\\\\Renders\\\\Imagenes' && rm 'C:\\\\Users\\\\coin\\\\Desktop\\\\Renders\\\\Imagenes\\\\'*.png && echo \"---deleted---\" && ls 'C:\\\\Users\\\\coin\\\\Desktop\\\\Renders\\\\Imagenes')",
+      "mcp__Blender__search_api_docs",
+      "mcp__Blender__get_python_api_docs",
+      "mcp__Blender__get_screenshot_of_window_as_json",
+      "mcp__Blender__get_blendfile_summary_datablocks",
+      "mcp__Blender__jump_to_tab_by_space_type"
     ]
   }
 }

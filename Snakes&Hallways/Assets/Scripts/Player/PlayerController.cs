@@ -35,15 +35,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float staminaCooldownAfterEmpty = 2f;
 
     [Header("Head Bob")]
-    [SerializeField] float bobWalkAmp = 0.05f;
-    [SerializeField] float bobWalkFreq = 8f;
-    [SerializeField] float bobSprintAmp = 0.09f;
-    [SerializeField] float bobSprintFreq = 13f;
-    [SerializeField] float bobCrouchAmp = 0.025f;
+    [SerializeField] float bobWalkAmp = 0.09f;
+    [SerializeField] float bobWalkFreq = 10f;
+    [SerializeField] float bobSprintAmp = 0.18f;
+    [SerializeField] float bobSprintFreq = 16f;
+    [SerializeField] float bobCrouchAmp = 0.04f;
     [SerializeField] float bobCrouchFreq = 5f;
-    [SerializeField] float bobTiredAmp = 0.11f;
-    [SerializeField] float bobTiredFreq = 6f;
-    [SerializeField] float bobReturnSpeed = 6f;
+    [SerializeField] float bobTiredAmp = 0.2f;
+    [SerializeField] float bobTiredFreq = 7f;
+    [SerializeField] float bobReturnSpeed = 8f;
 
     [Header("Interaction")]
     [SerializeField] float interactRange = 2.5f;
@@ -86,6 +86,8 @@ public class PlayerController : MonoBehaviour
     float stepTimer;
     bool wasGrounded;
 
+    float colliderInitialCenterY;
+
     // Animator triggers (use coroutines so we can both Set & Reset cleanly)
     static readonly int HashWalking   = Animator.StringToHash("Walking");
     static readonly int HashRunning   = Animator.StringToHash("Running");
@@ -97,9 +99,21 @@ public class PlayerController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
-        if (cameraTransform == null && camHolder != null) cameraTransform = camHolder.transform;
+        if (cameraTransform == null && camHolder != null)
+        {
+            // Fallback: use camHolder's first child camera, or camHolder itself
+            var cam = camHolder.GetComponentInChildren<Camera>();
+            cameraTransform = cam != null ? cam.transform : camHolder.transform;
+            if (cam == null)
+                Debug.LogWarning("PlayerController: Camera Transform not assigned and no Camera found under CamHolder. Head bob may not work correctly.", this);
+        }
         if (cameraTransform) cameraLocalStart = cameraTransform.localPosition;
         stamina = maxStamina;
+        if (playerCollider)
+        {
+            colliderInitialCenterY = playerCollider.center.y;
+            standHeight = playerCollider.height; // sync so no shift on start
+        }
     }
 
     void Start()
@@ -122,7 +136,6 @@ public class PlayerController : MonoBehaviour
         HeadBob();
         FootstepTick();
         UpdateNoneStateMesh();
-        Debug.DrawRay(camHolder.transform.position, camHolder.transform.forward * interactRange, Color.red);
     }
 
     void FixedUpdate() { Movement(); }
@@ -151,12 +164,12 @@ public class PlayerController : MonoBehaviour
         velocityChange = Vector3.ClampMagnitude(velocityChange, maxForce);
         rb.AddForce(velocityChange, ForceMode.VelocityChange);
 
-        // Smooth crouch height
+        // Smooth crouch height — center stays fixed, only height changes
         if (playerCollider)
         {
             float targetH = IsCrouching ? crouchHeight : standHeight;
             playerCollider.height = Mathf.Lerp(playerCollider.height, targetH, Time.fixedDeltaTime * crouchLerpSpeed);
-            var c = playerCollider.center; c.y = playerCollider.height * 0.5f; playerCollider.center = c;
+            var c = playerCollider.center; c.y = colliderInitialCenterY; playerCollider.center = c;
         }
     }
     #endregion
@@ -307,5 +320,28 @@ public class PlayerController : MonoBehaviour
     public void OnLamp(InputAction.CallbackContext ctx) { if (ctx.performed) ToggleLamp(); }
     public void OnReload(InputAction.CallbackContext ctx) { /* hook reload */ }
     public void OnShoot(InputAction.CallbackContext ctx) { /* hook shoot */ }
+    #endregion
+
+    #region Gizmos
+    void OnDrawGizmosSelected()
+    {
+        if (camHolder == null) return;
+
+        var origin = camHolder.transform.position;
+        var dir    = camHolder.transform.forward;
+
+        // Interaction spherecast
+        Gizmos.color = Color.red;
+        Gizmos.DrawRay(origin, dir * interactRange);
+        Gizmos.color = new Color(1f, 0f, 0f, 0.25f);
+        Gizmos.DrawWireSphere(origin + dir * interactRange, interactRadius);
+
+        // Ground check
+        if (groundCheck != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+        }
+    }
     #endregion
 }
