@@ -53,6 +53,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: b33c24a52bf4c04478571e2f200b1bfe, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _CurvatureMap:
+        m_Texture: {fileID: 2800000, guid: 8c34ece097001e446ae6eb870924f504, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -77,6 +81,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: efda5ec36d8f9c14fab492bed985c338, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _MaskMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
         m_Texture: {fileID: 2800000, guid: f9923cf58f0532249a6832187003e26b, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -86,7 +94,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalMap:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: b33c24a52bf4c04478571e2f200b1bfe, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -132,6 +140,7 @@ Material:
     - _ClearCoatSmoothness: 0
     - _Contrast: 1.12
     - _Cull: 2
+    - _CurvatureStrength: 0
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
     - _DetailNoise: 1
@@ -163,6 +172,7 @@ Material:
     - _GrimeDirectionality: 0.7
     - _GrimeIntensity: 0.55
     - _GrimeScale: 1
+    - _MaskMapStrength: 0
     - _Metallic: 0
     - _ModularSeamInfluence: 1
     - _NoiseBreakup: 0.5

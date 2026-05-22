@@ -38,6 +38,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: 6e94628aade6fdc4495a675005f0ec6f, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _CurvatureMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -62,6 +66,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: 412e3f1dfcc07014faa5d47596b81f53, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _MaskMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
         m_Texture: {fileID: 2800000, guid: 419d0d97f82e8a9408b306a50e78ec86, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -71,7 +79,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalMap:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 6e94628aade6fdc4495a675005f0ec6f, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -104,6 +112,9 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AOEndDistance: 14
+    - _AOExtremesStrength: 0.45
+    - _AOStartDistance: 4
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
@@ -117,15 +128,16 @@ Material:
     - _ClearCoatSmoothness: 0
     - _Contrast: 1.12
     - _Cull: 2
+    - _CurvatureStrength: 0.405
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
     - _DetailNoise: 1
     - _DetailNormalMapScale: 1
-    - _DownwardBias: 0.2
+    - _DownwardBias: 0.55
     - _DstBlend: 0
     - _DstBlendAlpha: 0
     - _EdgeAOPower: 3.5
-    - _EdgeAOStrength: 0.45
+    - _EdgeAOStrength: 0.513
     - _EdgeFadeRange: 3
     - _EdgeIntensity: 4
     - _EdgeVisibilityDistance: 8
@@ -148,6 +160,8 @@ Material:
     - _GrimeDirectionality: 0.7
     - _GrimeIntensity: 0.55
     - _GrimeScale: 1
+    - _HighlightSoftness: 0.15
+    - _MaskMapStrength: 0
     - _Metallic: 0
     - _ModularSeamInfluence: 1
     - _NoiseBreakup: 0.5
@@ -174,7 +188,7 @@ Material:
     - _SrcBlendAlpha: 1
     - _StylizedAOContrast: 1.2
     - _StylizedAOScale: 0.35
-    - _StylizedAOStrength: 0.7
+    - _StylizedAOStrength: 0.502
     - _Surface: 0
     - _Triplanar: 0
     - _TriplanarScale: 0.5

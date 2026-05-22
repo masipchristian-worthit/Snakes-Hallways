@@ -38,6 +38,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: dc7c2ae8e60c3624ca104d1864178f25, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _CurvatureMap:
+        m_Texture: {fileID: 2800000, guid: cd67bff1c5d5e5340abc5e96edefaf03, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -62,8 +66,12 @@ Material:
         m_Texture: {fileID: 2800000, guid: 60ce11efb9100e7488ed33c06eb4bc22, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _MaskMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
-        m_Texture: {fileID: 2800000, guid: 61aa11b3c70ef0849a21c97d01c65f93, type: 3}
+        m_Texture: {fileID: 2800000, guid: 908c55930f04d604e9c8e1d84aca3491, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NoiseTexture:
@@ -104,6 +112,9 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AOEndDistance: 14
+    - _AOExtremesStrength: 0.45
+    - _AOStartDistance: 4
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
@@ -116,15 +127,16 @@ Material:
     - _ClearCoatSmoothness: 0
     - _Contrast: 1.12
     - _Cull: 2
+    - _CurvatureStrength: 0.405
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
     - _DetailNoise: 1
     - _DetailNormalMapScale: 1
-    - _DownwardBias: 0.2
+    - _DownwardBias: 0.55
     - _DstBlend: 0
     - _DstBlendAlpha: 0
     - _EdgeAOPower: 3.5
-    - _EdgeAOStrength: 0.45
+    - _EdgeAOStrength: 0.513
     - _EdgeFadeRange: 3
     - _EdgeIntensity: 4
     - _EdgeVisibilityDistance: 8
@@ -144,7 +156,9 @@ Material:
     - _GrimeDirectionality: 0.7
     - _GrimeIntensity: 0.55
     - _GrimeScale: 1
-    - _Metallic: 0
+    - _HighlightSoftness: 0.15
+    - _MaskMapStrength: 0
+    - _Metallic: 1
     - _ModularSeamInfluence: 1
     - _NoiseBreakup: 0.5
     - _NoiseContrast: 0.65
@@ -159,14 +173,14 @@ Material:
     - _SeamDissolveAmount: 0.35
     - _SeamThreshold: 0.15
     - _ShadowIntensity: 0.5
-    - _Smoothness: 0.5
+    - _Smoothness: 1
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
     - _StylizedAOContrast: 1.2
     - _StylizedAOScale: 0.35
-    - _StylizedAOStrength: 0.7
+    - _StylizedAOStrength: 0.502
     - _Surface: 0
     - _Triplanar: 0
     - _TriplanarScale: 0.5
