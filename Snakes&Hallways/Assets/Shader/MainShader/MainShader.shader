@@ -14,26 +14,39 @@ Shader "Custom/MainShader"
         [MainColor]   _BaseColor        ("Base Color",        Color)      = (1,1,1,1)
                       _NormalMap        ("Normal Map",        2D)         = "bump"  {}
                       _NormalStrength   ("Normal Strength",   Range(0,2)) = 1.0
+
+        [Header(Metallic and Smoothness)]
+                      _MetallicGlossMap ("Metallic Map (R metallic A smooth)", 2D) = "white" {}
                       _Metallic         ("Metallic",          Range(0,1)) = 0.0
                       _Smoothness       ("Smoothness",        Range(0,1)) = 0.4
-                      _OcclusionStrength("Occlusion",         Range(0,1)) = 1.0
-                      _OcclusionMap     ("Occlusion Map (G)", 2D)         = "white" {}
+
+        [Header(Occlusion and Curvature)]
+                      _OcclusionMap     ("Ambient Occlusion Map (G)", 2D) = "white" {}
+                      _OcclusionStrength("Occlusion Strength",Range(0,1)) = 1.0
+                      _CurvatureMap     ("Curvature Map (R)", 2D)         = "white" {}
+                      _CurvatureStrength("Curvature Strength",Range(0,1)) = 0.0
+
+        [Header(Mask Map  R metal G AO B detail A smooth)]
+                      _MaskMap          ("Mask Map",          2D)         = "white" {}
+                      _MaskMapStrength  ("Mask Map Influence",Range(0,1)) = 0.0
+
+        [Header(Emission)]
         [HDR]         _EmissionColor    ("Emission Color",    Color)      = (0,0,0,1)
                       _EmissionMap      ("Emission Map",      2D)         = "black" {}
 
-        [Header(Stylized Fake AO)]
+        [Header(Stylized Triplanar AO  neutral darkening)]
                       _StylizedAOMap      ("AO Overlay Map",          2D)           = "black" {}
-                      _StylizedAOStrength ("AO Overlay Strength",     Range(0,1))   = 0.70
+                      _StylizedAOStrength ("AO Overlay Strength",     Range(0,1))   = 0.0
                       _StylizedAOContrast ("AO Overlay Contrast",     Range(0.1,3)) = 1.20
                       _StylizedAOScale    ("AO Overlay Scale world",  Float)        = 0.35
-                      _StylizedAOTint     ("AO Tint",                 Color)        = (0.06, 0.05, 0.04, 1)
 
-        [Header(Edge AO Inscryption Style)]
-                      _EdgeAOStrength     ("Edge AO Strength",        Range(0,1))   = 0.45
-                      _EdgeAOPower        ("Edge AO Power",           Range(1,8))   = 3.5
+        [Header(Scene Extremes AO  distance darken)]
+                      _AOExtremesStrength ("AO Extremes Strength",    Range(0,1))   = 0.45
+                      _AOStartDistance    ("AO Start Distance m",     Float)        = 4.0
+                      _AOEndDistance      ("AO End Distance m",       Float)        = 14.0
 
-        [Header(Downward Surface Darkening)]
-                      _DownwardBias       ("Downward Bias",           Range(0,1))   = 0.20
+        [Header(Highlight Softness  Reinhard rolloff)]
+                      _HighlightSoftness  ("Highlight Softness",      Range(0,1))   = 0.15
     }
 
     SubShader
@@ -95,22 +108,27 @@ Shader "Custom/MainShader"
                 float  _Metallic;
                 float  _Smoothness;
                 float  _OcclusionStrength;
+                float  _CurvatureStrength;
+                float  _MaskMapStrength;
                 float4 _EmissionColor;
 
                 float  _StylizedAOStrength;
                 float  _StylizedAOContrast;
                 float  _StylizedAOScale;
-                float4 _StylizedAOTint;
-                float  _EdgeAOStrength;
-                float  _EdgeAOPower;
-                float  _DownwardBias;
+                float  _AOExtremesStrength;
+                float  _AOStartDistance;
+                float  _AOEndDistance;
+                float  _HighlightSoftness;
             CBUFFER_END
 
-            TEXTURE2D(_BaseMap);         SAMPLER(sampler_BaseMap);
-            TEXTURE2D(_NormalMap);       SAMPLER(sampler_NormalMap);
-            TEXTURE2D(_OcclusionMap);    SAMPLER(sampler_OcclusionMap);
-            TEXTURE2D(_EmissionMap);     SAMPLER(sampler_EmissionMap);
-            TEXTURE2D(_StylizedAOMap);   SAMPLER(sampler_StylizedAOMap);
+            TEXTURE2D(_BaseMap);          SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_NormalMap);        SAMPLER(sampler_NormalMap);
+            TEXTURE2D(_MetallicGlossMap); SAMPLER(sampler_MetallicGlossMap);
+            TEXTURE2D(_OcclusionMap);     SAMPLER(sampler_OcclusionMap);
+            TEXTURE2D(_CurvatureMap);     SAMPLER(sampler_CurvatureMap);
+            TEXTURE2D(_MaskMap);          SAMPLER(sampler_MaskMap);
+            TEXTURE2D(_EmissionMap);      SAMPLER(sampler_EmissionMap);
+            TEXTURE2D(_StylizedAOMap);    SAMPLER(sampler_StylizedAOMap);
 
             struct Attributes
             {
@@ -171,14 +189,9 @@ Shader "Custom/MainShader"
                 float3 albedo     = baseSample.rgb * _BaseColor.rgb;
                 float  alpha      = baseSample.a   * _BaseColor.a;
 
-                // ===== STYLIZED FAKE AO =====
-                // Three independent darkening sources, all multiplicative.
-
-                // --- 1. Triplanar AO overlay (texture-driven grunge / crevices) ---
-                //     Works on any mesh; world-space projection so no UV stretch.
-                //     Bright pixels in the AO map = MORE darkening (= grime / cavity).
-                //     Default texture "black" = no contribution; assign T_GrimeAtlas_01
-                //     or any tileable grayscale to see the effect.
+                // ===== STYLIZED TRIPLANAR AO (neutral darkening, no tint) =====
+                // Bright pixels in the overlay map = MORE darkening (cavity / grime).
+                // Default texture "black" = no contribution.
                 {
                     float3 p = wpos * _StylizedAOScale;
                     float3 nAbs = abs(wnG);
@@ -188,25 +201,7 @@ Shader "Custom/MainShader"
                     float az = SAMPLE_TEXTURE2D(_StylizedAOMap, sampler_StylizedAOMap, p.xy).r;
                     float ao = ax * nAbs.x + ay * nAbs.y + az * nAbs.z;
                     ao = pow(saturate(ao), _StylizedAOContrast);
-                    float amount = ao * _StylizedAOStrength;
-                    albedo = lerp(albedo, _StylizedAOTint.rgb * albedo, amount);
-                }
-
-                // --- 2. Edge AO (Inscryption / Buckshot Roulette silhouette darkening) ---
-                //     Fresnel-style: glancing-angle pixels (object silhouettes)
-                //     get tinted dark, giving a "card-depth" painted feel.
-                {
-                    float3 V = SafeNormalize(IN.viewDirWS);
-                    float ndv = saturate(dot(wnG, V));
-                    float edge = pow(1.0 - ndv, _EdgeAOPower);
-                    albedo = lerp(albedo, _StylizedAOTint.rgb * albedo, edge * _EdgeAOStrength);
-                }
-
-                // --- 3. Downward-facing surface darkening (less ambient bounce) ---
-                {
-                    float facingDown = saturate(-wnG.y);
-                    float mul = lerp(1.0, 0.55, facingDown * _DownwardBias);
-                    albedo *= mul;
+                    albedo *= lerp(1.0, 1.0 - ao, _StylizedAOStrength);
                 }
 
                 // --- Normal map ---
@@ -217,16 +212,32 @@ Shader "Custom/MainShader"
                 float3 normalWS  = normalize(TransformTangentToWorld(
                                        normalTS, float3x3(IN.tangentWS.xyz, bitangent, wnG)));
 
+                // --- Metallic / Smoothness from map (R = metallic, A = smoothness) ---
+                float4 mg = SAMPLE_TEXTURE2D(_MetallicGlossMap, sampler_MetallicGlossMap, IN.uv);
+
+                // --- Mask Map (HDRP-style: R metal, G AO, B detail, A smooth) ---
+                //     _MaskMapStrength = 0 means ignore (default white texture has no effect anyway).
+                float4 mask = SAMPLE_TEXTURE2D(_MaskMap, sampler_MaskMap, IN.uv);
+                float maskMetal  = lerp(1.0, mask.r, _MaskMapStrength);
+                float maskAO     = lerp(1.0, mask.g, _MaskMapStrength);
+                float maskSmooth = lerp(1.0, mask.a, _MaskMapStrength);
+
+                // --- Occlusion (G) and Curvature (R) ---
+                float occ  = SAMPLE_TEXTURE2D(_OcclusionMap, sampler_OcclusionMap, IN.uv).g;
+                float curv = SAMPLE_TEXTURE2D(_CurvatureMap, sampler_CurvatureMap, IN.uv).r;
+                float occlusion = lerp(1.0, occ, _OcclusionStrength);
+                occlusion *= lerp(1.0, curv, _CurvatureStrength);
+                occlusion *= maskAO;
+
                 // --- Pack SurfaceData ---
                 SurfaceData sd = (SurfaceData)0;
                 sd.albedo      = albedo;
-                sd.metallic    = _Metallic;
-                sd.smoothness  = _Smoothness;
+                sd.metallic    = mg.r * _Metallic   * maskMetal;
+                sd.smoothness  = mg.a * _Smoothness * maskSmooth;
                 sd.normalTS    = normalTS;
                 sd.emission    = SAMPLE_TEXTURE2D(_EmissionMap, sampler_EmissionMap, IN.uv).rgb
                                  * _EmissionColor.rgb;
-                float occ      = SAMPLE_TEXTURE2D(_OcclusionMap, sampler_OcclusionMap, IN.uv).g;
-                sd.occlusion   = lerp(1.0, occ, _OcclusionStrength);
+                sd.occlusion   = occlusion;
                 sd.alpha       = alpha;
 
                 // --- Pack InputData ---
@@ -245,7 +256,30 @@ Shader "Custom/MainShader"
                 inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(IN.positionCS);
                 inputData.shadowMask           = SAMPLE_SHADOWMASK(IN.lightmapUV);
 
+                // ===== SCENE EXTREMES AO =====
+                // Darkens the lit result with distance from camera (neutral, no tint).
+                // Produces the "player halo of light" horror feel without burning silhouettes.
+                float camDist = length(_WorldSpaceCameraPos - wpos);
+                float aoFade  = saturate((camDist - _AOStartDistance) /
+                                          max(_AOEndDistance - _AOStartDistance, 1e-3));
+                float aoMul   = lerp(1.0, 1.0 - _AOExtremesStrength, aoFade);
+
+                // Apply to albedo and baked GI so direct + indirect lighting both fade.
+                // Emission stays untouched (handled inside UniversalFragmentPBR via sd.emission).
+                sd.albedo            *= aoMul;
+                inputData.bakedGI    *= aoMul;
+
                 half4 color = UniversalFragmentPBR(inputData, sd);
+
+                // ===== HIGHLIGHT SOFTNESS (Reinhard rolloff on lighting only) =====
+                // Subtract emission, soften, re-add emission so torches keep punch.
+                if (_HighlightSoftness > 0.0)
+                {
+                    float3 lit   = max(color.rgb - sd.emission, 0.0);
+                    float3 soft  = lit / (1.0 + lit * _HighlightSoftness);
+                    color.rgb    = soft + sd.emission;
+                }
+
                 color.rgb   = MixFog(color.rgb, IN.fogFactor);
                 return color;
             }

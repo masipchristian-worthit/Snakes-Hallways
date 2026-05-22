@@ -87,6 +87,19 @@ public class AudioManager : MonoBehaviour
     AudioSource musicSourceB;
     bool useA = true;
 
+    // Escalas globales aplicadas por SettingsManager.
+    [System.NonSerialized] public float sfxScale = 1f;
+    [System.NonSerialized] public float musicScale = 1f;
+    float currentMusicBase = 0.7f;
+
+    public void SetSfxScale(float s) { sfxScale = Mathf.Clamp01(s); }
+    public void SetMusicScale(float s)
+    {
+        musicScale = Mathf.Clamp01(s);
+        if (musicSourceA != null) musicSourceA.volume = (musicSourceA.isPlaying ? currentMusicBase * musicScale : 0f);
+        if (musicSourceB != null) musicSourceB.volume = (musicSourceB.isPlaying ? currentMusicBase * musicScale : 0f);
+    }
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -130,7 +143,7 @@ public class AudioManager : MonoBehaviour
         src.transform.position = position;
         src.spatialBlend = 1f;
         src.clip = clip;
-        src.volume = e.volume * volumeMultiplier;
+        src.volume = e.volume * volumeMultiplier * sfxScale;
         src.pitch = Random.Range(e.minPitch, e.maxPitch);
         src.Play();
     }
@@ -143,7 +156,7 @@ public class AudioManager : MonoBehaviour
         sfxPoolIndex = (sfxPoolIndex + 1) % sfxPool.Length;
         src.spatialBlend = 0f;
         src.clip = clip;
-        src.volume = e.volume * volumeMultiplier;
+        src.volume = e.volume * volumeMultiplier * sfxScale;
         src.pitch = Random.Range(e.minPitch, e.maxPitch);
         src.Play();
     }
@@ -156,7 +169,8 @@ public class AudioManager : MonoBehaviour
         fadeIn.clip = e.clip;
         fadeIn.volume = 0f;
         fadeIn.Play();
-        StartCoroutine(FadeMusic(fadeIn, fadeOut, e.volume, fadeTime));
+        currentMusicBase = e.volume;
+        StartCoroutine(FadeMusic(fadeIn, fadeOut, e.volume * musicScale, fadeTime));
         useA = !useA;
     }
 

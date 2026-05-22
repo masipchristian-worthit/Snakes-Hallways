@@ -5,6 +5,10 @@ using UnityEngine;
 public class EnemyAttack : MonoBehaviour
 {
     [SerializeField] float windowDuration = 0.35f;
+    [Tooltip("Daño aplicado al jugador en cada golpe. Si su PlayerHealth llega a 0 muere.")]
+    [SerializeField] float damage = 35f;
+    [Tooltip("Si está activo y no se encuentra PlayerHealth en el target, mata al jugador instantáneamente (comportamiento original).")]
+    [SerializeField] bool fallbackToInstantKill = true;
 
     Collider col;
 
@@ -33,6 +37,10 @@ public class EnemyAttack : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
-        GameManager.Instance?.TriggerGameOver();
+        var hp = other.GetComponentInParent<PlayerHealth>();
+        if (hp != null)
+            hp.TakeDamage(damage);
+        else if (fallbackToInstantKill)
+            GameManager.Instance?.TriggerGameOver();
     }
 }

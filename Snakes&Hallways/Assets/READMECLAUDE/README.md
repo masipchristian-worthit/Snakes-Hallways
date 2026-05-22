@@ -22,14 +22,13 @@
 └─────────────────────────────────────────────────────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  PASO 2 · Generar las 2 texturas de ruido                       │
+│  PASO 2 · Crear ShaderManager (singleton)                       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Menú:   Tools ▸ MainShader ▸ Generate Worley Noise (512)       │
-│  Menú:   Tools ▸ MainShader ▸ Generate Grime Texture (1024)     │
-│  → Se crean automáticamente en Assets/Shader/MainShader/Noise/  │
-│     · T_NoiseTile_Worley_01.png   (ruido celular)               │
-│     · T_GrimeAtlas_01.png         (manchas de mugre)            │
-│  → Import settings ya configurados (sRGB OFF, Repeat, mipmaps). │
+│  · Crea un GameObject vacío en escena: "ShaderManager"           │
+│  · Añade el componente: Assets/Scripts/Managers/ShaderManager.cs │
+│  · Inspector ▸ botón "Auto-Fill From Scene"                     │
+│  → Busca y lista todos los materiales que usan Custom/MainShader │
+│  → Permite tuning global de: AO Extremes, Highlight Softness     │
 └─────────────────────────────────────────────────────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -41,16 +40,18 @@
 └─────────────────────────────────────────────────────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  PASO 4 · Asignar texturas                                      │
+│  PASO 4 · Asignar texturas (PBR estándar)                       │
 ├─────────────────────────────────────────────────────────────────┤
-│   Slot                      Textura                             │
-│   ───────────────────────────────────────────────────────────   │
-│   Base Map ............... tu piedra/madera                     │
-│   Normal Map ............. su normal map                        │
-│   Noise Texture .......... T_NoiseTile_Worley_01                │
-│   Grime Map .............. T_GrimeAtlas_01                      │
+│   Base Map ....................... tu piedra/madera              │
+│   Base Color ..................... ajusta tono base              │
+│   Normal Map ..................... su normal map                 │
+│   Metallic / Smoothness Map ...... R=metallic, A=smooth         │
+│   Occlusion / Curvature Map ...... AO (G) y curvature (R)       │
+│   Mask Map (opcional) ............ HDRP-style RGBA              │
+│   Emission Map (opcional) ........ brillo                       │
 │                                                                 │
-│   El resto: defaults sepia-Inscryption ya tuneados.             │
+│   El resto: defaults URP puro (SIN filtro sepia).               │
+│   Scene Extremes AO activo por defecto (4-14m).                 │
 └─────────────────────────────────────────────────────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -59,14 +60,14 @@
 │  Arrastra el material a un muro/suelo modular.                  │
 │                                                                 │
 │  ✓ TEST coplanar:                                               │
-│      [▓▓▓▓][▓▓▓▓]   ← 2 muros 2×2 juntos → SIN línea visible   │
+│      [▓▓▓▓][▓▓▓▓]   ← 2 muros 2×2 juntos → colores naturales    │
 │                                                                 │
-│  ✓ TEST esquina:                                                │
-│      [▓▓▓▓]┐                                                    │
-│            [▓▓▓▓]   ← junta a 90° → SE VE oscurecimiento + ruido│
+│  ✓ TEST distancia (Scene Extremes AO):                          │
+│      0m ━━━ legible ━━ 4m inicio fade ━━ 14m saturation        │
+│      → halo de luz alrededor jugador, extremos oscurecidos      │
 │                                                                 │
-│  ✓ TEST distancia:                                              │
-│      0m ━━━━━━━━ 8m ╌╌╌ 11m ········  (efecto se desvanece)    │
+│  ✓ TEST highlights:                                             │
+│      Superficies brillantes sin burn visual → Reinhard rolloff  │
 └─────────────────────────────────────────────────────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -81,10 +82,11 @@
 |--------------------------------------------|------------------------------------------------|
 | Error de compilación al refrescar          | Pegar mensaje exacto de Console                |
 | Material magenta                           | URP < 17.2 — actualizar package                |
-| Costura visible entre paredes coplanares   | Smoothing groups rotos en el FBX               |
-| Mugre apenas visible                       | Subir `_GrimeIntensity` a 0.8                  |
-| Ruido demasiado obvio                      | Bajar `_NoiseContrast` a 0.4                   |
-| Niebla muy densa cerca                     | Bajar `_FogStrength` a 0.3                     |
+| Demasiado oscuro en extremos                | Bajar `_AOExtremesStrength` a 0.2–0.3           |
+| No hay oscurecimiento en distancia         | Subir `_AOExtremesStrength` a 0.6–0.8           |
+| Highlights aún queman                      | Subir `_HighlightSoftness` a 0.3–0.5            |
+| Hay filtro sepia en materiales viejos      | Reset material o reasignar shader                |
+| Properties `_EdgeAOStrength` legacy error  | Ignorar (ya no existen en v2.6)                 |
 
 ---
 
@@ -111,50 +113,55 @@ visibles tres problemas:
 estas costuras de forma **localizada** (sin contaminar muros lisos continuos
 ni añadir outlines genéricos toon).
 
-## 3. Decisiones de diseño (Test del usuario)
+## 3. Decisiones de diseño (Test del usuario + iteraciones)
 
-| Bloque | Decisión |
+| Bloque | Decisión (v2.6) |
 |---|---|
-| Arquitectura | Framework drop-in URP/Lit con keywords |
-| Rendimiento | Steam Deck, Forward+, 2–3 samples de ruido |
-| Tratamiento de costura | Híbrido **oscurecimiento + disolución** |
-| Features opcionales | Solo `_TRIPLANAR_ON` |
-| Mood | **Sutil / Inscryption** (narrativo, contraste medio) |
-| Estilización | PBR ligeramente estilizado |
-| Paleta | **Sepia cálido, sombras marrón** |
-| Niebla | **Volumétrica custom densa cerca del jugador** + niebla URP nativa |
-| Ruido | **Obvio, estilizado** (R.E.P.O./Lethal Company) |
-| Suelo/muro | Diferenciación automática por `worldNormal.y` |
-| Detección costura | **Curvature por `fwidth(worldNormal)` geométrico** |
-| Distancia | Visible 0–3 m, fade a 8–10 m |
+| Arquitectura | Framework drop-in URP/Lit, PBR puro + extras opcionales |
+| Rendimiento | Steam Deck-compatible, Forward+ ready |
+| Tratamiento de costura | **Abandoned:** fwidth-based detection fue invisible. Pivotado a Scene Extremes AO. |
+| Oscurecimiento | **Scene Extremes AO:** distance-based, no seam-specific. Halo de luz alrededor jugador. |
+| Mood | **Horror atmosférico, sin quema:** PBR neutro + AO en extremos + Reinhard rolloff. |
+| Estilización | PBR estándar (sin tint/filtro). Modular + extensible. |
+| Paleta | **Neutral:** user-determined vía texturas y BaseColor. SIN sepia por defecto. |
+| Compresión de highlights | **Reinhard rolloff** en lighting (emission untouched). Anti-burn. |
+| Curvature map | **Nuevo (v2.5):** multiplica occlusion en cavidades. |
+| Metallic map | **Nuevo (v2.5):** estándar URP (R=metallic, A=smoothness). |
+| Mask map | **Nuevo (v2.5):** HDRP-style (R=metal, G=AO, B=detail, A=smooth) para control packed. |
+| ShaderManager | **Nuevo (v2.5):** Singleton para tuning global. Auto-fill desde escena. |
 
-### Nota crítica del usuario (REQUISITO DURO)
-> "Las paredes 2×2 que estén una al lado de la otra **NO DEBEN tener
-> costuras** en los bordes que las unen, solo cuando haya un cambio de
-> rotación."
+### Nota: cambio de estrategia (v2.4–v2.6)
 
-**Cómo se cumple:** la detección usa `fwidth(WorldNormal)` sobre la
-**normal interpolada geométrica** (sin perturbar por normal map). Dos quads
-coplanares contiguos tienen normal idéntica `(1,0,0)` y por tanto la
-derivada en la junta es 0 → la máscara es 0 → no aparece costura.
-Solo aristas reales (esquinas, piezas rotadas) producen un pico.
+**v2.1–v2.3** persiguió la detección geométrica de costuras:
+> "Las paredes 2×2 coplanares NO DEBEN tener costuras, solo en esquinas."
 
-Esto está enforced en `MainShader_Includes.hlsl::ComputeSeamMasks` y en
-`CF_FwidthNormal.hlsl`. **No cambiar a normal map perturbada** o se
-introducen falsas costuras donde hay detalle de textura.
+Estrategia: `fwidth(WorldNormal)` en normal geométrica → resultado invisible en mallas smooth-shaded (FBX típicos). Abandonada.
 
-## 4. Estado actual de implementación
+**v2.4–v2.6** pivotó a estrategia de **Scene Extremes AO**:
+- No intenta detectar costuras (detalles micro).
+- Oscurece según **distancia desde cámara** → halo de luz horror.
+- Neutral (sin tint) → user's colors untouched.
+- Robusta: funciona en cualquier malla, sin dependencias geométricas.
+
+**Resultado:** el problema de costuras se resuelve ahora via:
+1. **Material continuidad:** texturas/normal maps alineadas.
+2. **Geometric smoothing:** smoothing groups correctos en FBX.
+3. **AO baked / curvature map:** detalle local via texturas.
+4. **Scene Extremes AO:** oscurecimiento global con distancia (no seam-specific).
+
+## 4. Estado actual de implementación (v2.6)
 
 | Componente | Estado | Ruta |
 |---|---|---|
-| Shader principal (ShaderLab+HLSL) | ✅ Implementado y funcional | `Assets/Shader/MainShader/MainShader.shader` |
-| Librería HLSL compartida | ✅ | `Assets/Shader/MainShader/MainShader_Includes.hlsl` |
-| Custom Functions HLSL (9 archivos) | ✅ | `Assets/Shader/MainShader/CustomFunctions/*.hlsl` |
-| Documentación local | ✅ | `Assets/Shader/MainShader/Documentation/` |
+| Shader principal (ShaderLab+HLSL) | ✅ v2.6 (Scene Extremes AO + Reinhard) | `Assets/Shader/MainShader/MainShader.shader` |
+| ShaderManager singleton | ✅ Nuevo (v2.5) | `Assets/Scripts/Managers/ShaderManager.cs` |
+| Slots PBR completos | ✅ BaseMap, NormalMap, MetallicGlossMap, OcclusionMap, CurvatureMap, MaskMap, EmissionMap | MainShader properties |
+| Librería HLSL compartida | ✅ Legacy (v2.0, no usado en v2.6) | `Assets/Shader/MainShader/MainShader_Includes.hlsl` |
+| Custom Functions HLSL | ✅ Legacy (disponible para Shader Graph) | `Assets/Shader/MainShader/CustomFunctions/*.hlsl` |
+| Documentación local | ✅ README + code comments | `Assets/Shader/MainShader/Documentation/` y README.md |
 | Generadores de textura (Editor) | ✅ Worley + Grime, vía menú `Tools/MainShader` | `Assets/Shader/MainShader/Editor/` |
-| Subgraphs Shader Graph | ⚠️ Pendientes — solo guía de creación | `Assets/Shader/MainShader/Subgraphs/_README_SUBGRAPHS.md` |
-| Texturas de ruido / mugre | ⚠️ Generar vía menú (paso 2 del Quick Start) | `Assets/Shader/MainShader/Noise/` |
-| Material de referencia | ⚠️ Crear en editor (paso 3 del Quick Start) | — |
+| Subgraphs Shader Graph | ⚠️ Pendientes — guía de creación | `Assets/Shader/MainShader/Subgraphs/_README_SUBGRAPHS.md` |
+| Texturas de ruido / mugre | ⚠️ Opcional; generar vía menú | `Assets/Shader/MainShader/Noise/` |
 
 ### Por qué no hay archivos `.shadergraph` / `.shadersubgraph`
 Los `.shadergraph` de Unity 6 / URP 17 son JSON con GUIDs internos. Crearlos
@@ -426,6 +433,47 @@ El viejo aún funciona pero da warning que ralentiza compilación.
 ---
 
 ## 16. Changelog
+
+### v2.6 — 2026-05-22 (recalibración: Scene Extremes AO + anti-burn)
+**El usuario reportó dos problemas:**
+1. La aproximación Edge AO fresnel "quemaba la vista" (tiñía silhouettes en sepia).
+2. Quería que las sombras/oscurecimiento respondieran a los "extremos del escenario", no a silhouettes locales.
+
+**Reemplazado el sistema de 3 capas (Edge AO + Downward Bias + Stylized AO tinted):**
+
+**Quitado:**
+- `_EdgeAOStrength`, `_EdgeAOPower` (fresnel silhouette darkening).
+- `_DownwardBias` (downward-facing surface darkening).
+- `_StylizedAOTint` color sepia (eliminaba el filtro marrón).
+
+**Añadido:**
+- **Scene Extremes AO** (distance-based):
+  - Oscurece según distancia desde cámara (produce halo de luz tipo Lethal Company).
+  - `_AOStartDistance` (4 m) → `_AOEndDistance` (14 m): rango de fade.
+  - `_AOExtremesStrength` (0.45): intensidad máxima al final.
+  - Multiplica `sd.albedo` e `inputData.bakedGI` (afecta directo + indirecto, NOT emission).
+  - Neutral en luminancia (sin teñir).
+  
+- **Highlight Softness** (Reinhard rolloff):
+  - Anti-burn: `color = color / (1 + color * softness)` aplicado solo al lighting.
+  - `_HighlightSoftness` (0.15 default): comprime highlights sin matar contraste.
+  - Emission preservada intacta.
+
+**Stylized Triplanar AO:**
+- Ahora oscurece sin tint: `albedo *= lerp(1, 1-ao, strength)`.
+- Sigue siendo world-space triplanar, sin UV stretch.
+- Default OFF (`_StylizedAOStrength = 0`).
+
+**Resultado visual:**
+- Ningún filtro rosa/sepia por defecto.
+- Superficies legibles y coloreadas cerca.
+- Oscurecimiento progresivo en los extremos → atmósfera oppresiva sin quema.
+- Highlights suave rolloff.
+
+**ShaderManager.cs:**
+- Quitados sliders: `edgeAOStrength`, `downwardBias`.
+- Añadidos: `aoExtremesStrength`, `aoStartDistance`, `aoEndDistance`, `highlightSoftness`.
+- Auto-fill + apply to all mantiene funcionalidad.
 
 ### v2.4 — 2026-05-21 (pivote a fake AO estilizado)
 **Tras varios intentos, la detección geométrica de costuras (fwidth de
@@ -723,4 +771,4 @@ textura, documentación y README maestro.
 
 ---
 
-_Última actualización: 2026-05-21 v2.4 — pivote a fake AO estilizado (3 capas)._
+_Última actualización: 2026-05-22 v2.6 — Scene Extremes AO + anti-burn (Reinhard), sin filtro sepia._

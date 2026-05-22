@@ -76,7 +76,9 @@ public class GameManager : MonoBehaviour
         State = GameState.GameOver;
         AudioManager.Instance?.PlayMusic(MusicId.GameOver);
         OnStateChanged?.Invoke(State);
-        SceneTransition.Instance?.FadeAndLoad(gameOverScene, 1.5f);
+        // Si hay un DefeatManager en escena, deja que él muestre la pantalla.
+        if (DefeatManager.Instance == null)
+            SceneTransition.Instance?.FadeAndLoad(gameOverScene, 1.5f);
     }
 
     public void TriggerWin()
@@ -85,6 +87,7 @@ public class GameManager : MonoBehaviour
         State = GameState.Win;
         AudioManager.Instance?.PlayMusic(MusicId.Win);
         OnStateChanged?.Invoke(State);
-        SceneTransition.Instance?.FadeAndLoad(winScene, 2f);
+        if (VictoryManager.Instance == null)
+            SceneTransition.Instance?.FadeAndLoad(winScene, 2f);
     }
 }

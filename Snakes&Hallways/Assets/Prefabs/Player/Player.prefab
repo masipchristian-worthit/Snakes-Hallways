@@ -345,6 +345,7 @@ GameObject:
   - component: {fileID: 4978660364092422600}
   - component: {fileID: 426553959226810132}
   - component: {fileID: 79932867057943258}
+  - component: {fileID: 5001394908481663918}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -653,6 +654,38 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: c1a23b00-1111-4000-aaaa-000000000003
     m_ActionName: 'Gameplay/Lamp[/Keyboard/f,/DualSenseGamepadHID/dpad/up]'
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 5001394908481663917}
+        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+        m_MethodName: OnToggleHand
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument:
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: c1a23b00-1111-4000-aaaa-000000000004
+    m_ActionName: 'Gameplay/ToggleHand[/Keyboard/tab,/DualSenseGamepadHID/select]'
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 5001394908481663917}
+        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+        m_MethodName: OnSwitchCamera
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument:
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: c1a23b00-1111-4000-aaaa-000000000005
+    m_ActionName: 'Gameplay/SwitchCamera[/Keyboard/c,/DualSenseGamepadHID/dpad/down]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
   m_DefaultActionMap: Gameplay
@@ -707,6 +740,23 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &5001394908481663918
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6904784297307427583}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6844a1e70100cdd42b8d8fe6883c1bcf, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  maxHP: 100
+  currentHP: 100
+  regenDelay: 60
+  regenRate: 2
+  iFrames: 0.3
 --- !u!1001 &5088902105125645548
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -759,6 +809,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Guante2
       objectReference: {fileID: 0}
+    - target: {fileID: 1588296411110593166, guid: 4f2b424befe5ff8469f0ea909aa7929b, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d154d2fb394880f4cb15af1ebdd4e33d, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

@@ -15,7 +15,10 @@
       "mcp__Blender__get_python_api_docs",
       "mcp__Blender__get_screenshot_of_window_as_json",
       "mcp__Blender__get_blendfile_summary_datablocks",
-      "mcp__Blender__jump_to_tab_by_space_type"
+      "mcp__Blender__jump_to_tab_by_space_type",
+      "Bash(git push *)",
+      "Bash(tee push_output.txt)",
+      "PowerShell(git push origin Moneda)"
     ]
   }
 }
