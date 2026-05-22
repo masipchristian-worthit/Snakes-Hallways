@@ -15,6 +15,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float crouchSpeed = 3f;
     [SerializeField] float maxForce = 1f;
     [SerializeField] float sensitivity = 0.1f;
+    public float MouseSensitivity { get => sensitivity; set => sensitivity = Mathf.Clamp(value, 0.01f, 2f); }
 
     [Header("Jump & GroundCheck")]
     [SerializeField] float jumpForce = 5f;
@@ -64,6 +65,22 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float stepIntervalWalk = 0.5f;
     [SerializeField] float stepIntervalSprint = 0.32f;
     [SerializeField] float stepIntervalCrouch = 0.75f;
+
+    [Header("Audio Sources (locales del player)")]
+    [Tooltip("AudioSource dedicado a los pasos. Si está vacío se crea uno en Awake.")]
+    [SerializeField] AudioSource stepsSource;
+    [Tooltip("AudioSource dedicado a los sonidos de mano/ojo. Si está vacío se crea uno en Awake.")]
+    [SerializeField] AudioSource handEyeSource;
+
+    [Header("Clips locales (opcionales)")]
+    [SerializeField] AudioClip[] stepClipsStone;
+    [SerializeField] AudioClip[] handDrawClips;
+    [SerializeField] AudioClip[] handStoreClips;
+
+    [Header("Hand toggle")]
+    [Tooltip("Si está activo, el jugador tiene la mano sacada (Draw). TAB la guarda/saca.")]
+    [SerializeField] bool startWithHandDrawn = false;
+    public bool HandDrawn { get; private set; }
     #endregion
 
     Rigidbody rb;
@@ -114,6 +131,37 @@ public class PlayerController : MonoBehaviour
             colliderInitialCenterY = playerCollider.center.y;
             standHeight = playerCollider.height; // sync so no shift on start
         }
+
+        EnsureAudioSources();
+    }
+
+    void EnsureAudioSources()
+    {
+        if (stepsSource == null)
+        {
+            var go = new GameObject("AS_Steps");
+            go.transform.SetParent(transform, false);
+            stepsSource = go.AddComponent<AudioSource>();
+            stepsSource.playOnAwake = false;
+            stepsSource.spatialBlend = 1f;
+        }
+        if (handEyeSource == null)
+        {
+            var go = new GameObject("AS_HandEye");
+            go.transform.SetParent(transform, false);
+            handEyeSource = go.AddComponent<AudioSource>();
+            handEyeSource.playOnAwake = false;
+            handEyeSource.spatialBlend = 0.5f;
+        }
+    }
+
+    void PlayRandomOn(AudioSource src, AudioClip[] clips, float volMul = 1f)
+    {
+        if (src == null || clips == null || clips.Length == 0) return;
+        var clip = clips[Random.Range(0, clips.Length)];
+        if (clip == null) return;
+        src.pitch = Random.Range(0.95f, 1.05f);
+        src.PlayOneShot(clip, volMul);
     }
 
     void Start()
@@ -121,6 +169,7 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         if (lampObject) lampObject.SetActive(LampOn);
+        HandDrawn = startWithHandDrawn;
     }
 
     void Update()
@@ -145,6 +194,7 @@ public class PlayerController : MonoBehaviour
     #region Movement / Look
     void CameraLook()
     {
+        if (InputBlocked) return;
         transform.Rotate(Vector3.up * lookInput.x * sensitivity);
         lookRotation += -lookInput.y * sensitivity;
         lookRotation = Mathf.Clamp(lookRotation, -90f, 90f);
@@ -154,7 +204,8 @@ public class PlayerController : MonoBehaviour
     void Movement()
     {
         Vector3 currentVelocity = rb.linearVelocity;
-        Vector3 targetVelocity = new Vector3(moveInput.x, 0, moveInput.y);
+        Vector2 effectiveMove = InputBlocked ? Vector2.zero : moveInput;
+        Vector3 targetVelocity = new Vector3(effectiveMove.x, 0, effectiveMove.y);
         float spd = IsCrouching ? crouchSpeed : (IsSprinting ? sprintSpeed : walkSpeed);
         targetVelocity *= spd;
         targetVelocity = transform.TransformDirection(targetVelocity);
@@ -237,7 +288,11 @@ public class PlayerController : MonoBehaviour
         if (stepTimer >= interval)
         {
             stepTimer = 0f;
-            AudioManager.Instance?.PlaySFX(SFXId.PlayerStepStone, transform.position, IsCrouching ? 0.3f : 1f);
+            float vol = IsCrouching ? 0.3f : 1f;
+            if (stepClipsStone != null && stepClipsStone.Length > 0)
+                PlayRandomOn(stepsSource, stepClipsStone, vol);
+            else
+                AudioManager.Instance?.PlaySFX(SFXId.PlayerStepStone, transform.position, vol);
             EnemyDetection.NotifyNoise(transform.position, IsSprinting ? 1f : (IsCrouching ? 0.15f : 0.5f));
         }
     }
@@ -258,8 +313,25 @@ public class PlayerController : MonoBehaviour
         yield return null;
     }
 
-    public void DrawWeapon() { StartCoroutine(FireTrigger(HashDraw)); AudioManager.Instance?.PlaySFX(SFXId.HandDraw, transform.position); }
-    public void StoreWeapon() { StartCoroutine(FireTrigger(HashReverseDraw)); AudioManager.Instance?.PlaySFX(SFXId.HandStore, transform.position); }
+    public void DrawWeapon()
+    {
+        StartCoroutine(FireTrigger(HashDraw));
+        HandDrawn = true;
+        if (handDrawClips != null && handDrawClips.Length > 0) PlayRandomOn(handEyeSource, handDrawClips);
+        else AudioManager.Instance?.PlaySFX(SFXId.HandDraw, transform.position);
+    }
+    public void StoreWeapon()
+    {
+        StartCoroutine(FireTrigger(HashReverseDraw));
+        HandDrawn = false;
+        if (handStoreClips != null && handStoreClips.Length > 0) PlayRandomOn(handEyeSource, handStoreClips);
+        else AudioManager.Instance?.PlaySFX(SFXId.HandStore, transform.position);
+    }
+    public void ToggleHand()
+    {
+        if (HandDrawn) StoreWeapon();
+        else DrawWeapon();
+    }
 
     void UpdateNoneStateMesh()
     {
@@ -320,7 +392,11 @@ public class PlayerController : MonoBehaviour
     public void OnLamp(InputAction.CallbackContext ctx) { if (ctx.performed) ToggleLamp(); }
     public void OnReload(InputAction.CallbackContext ctx) { /* hook reload */ }
     public void OnShoot(InputAction.CallbackContext ctx) { /* hook shoot */ }
+    public void OnToggleHand(InputAction.CallbackContext ctx) { if (ctx.performed) ToggleHand(); }
+    public void OnSwitchCamera(InputAction.CallbackContext ctx) { if (ctx.performed) SpyCamController.Instance?.Toggle(); }
     #endregion
+
+    bool InputBlocked => SpyCamController.Instance != null && (SpyCamController.Instance.IsActive || SpyCamController.Instance.IsTransitioning);
 
     #region Gizmos
     void OnDrawGizmosSelected()

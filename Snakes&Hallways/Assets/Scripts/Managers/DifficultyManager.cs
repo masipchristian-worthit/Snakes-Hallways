@@ -35,14 +35,28 @@ public class DifficultyManager : MonoBehaviour
 
     public Difficulty Current => current;
 
+    const string PrefKey = "SH_Difficulty";
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+
+        if (PlayerPrefs.HasKey(PrefKey))
+        {
+            int v = PlayerPrefs.GetInt(PrefKey);
+            if (System.Enum.IsDefined(typeof(Difficulty), v))
+                current = (Difficulty)v;
+        }
     }
 
-    public void SetDifficulty(Difficulty d) => current = d;
+    public void SetDifficulty(Difficulty d)
+    {
+        current = d;
+        PlayerPrefs.SetInt(PrefKey, (int)d);
+        PlayerPrefs.Save();
+    }
 
     public DifficultySettings GetSettings()
     {
