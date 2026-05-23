@@ -192,6 +192,7 @@ public class PlayerController : MonoBehaviour
     // Jump timers
     float coyoteTimer;
     float jumpBufferTimer;
+    bool jumpHeld;
 
     // Movement derived
     Vector3 prevPlanarVel;
@@ -606,12 +607,14 @@ public class PlayerController : MonoBehaviour
     {
         if (ctx.performed)
         {
+            jumpHeld = true;
             jumpBufferTimer = jumpBufferTime;
             // immediate try (coyoteTimer is fresh while grounded)
             if (coyoteTimer > 0f) TryConsumeJump();
         }
         else if (ctx.canceled)
         {
+            jumpHeld = false;
             ApplyJumpCut();
         }
     }
