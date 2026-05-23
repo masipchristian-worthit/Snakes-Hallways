@@ -21,6 +21,14 @@ public class DifficultySettings
     public float chaseSpeedMul = 1f;
     [Tooltip("Multiplier on hint frequency from intelligent AI.")]
     public float hintFrequencyMul = 1f;
+    [Tooltip("Segundos que el enemigo sigue persiguiendo al perder línea de visión antes de volver a patrullar/investigar.")]
+    public float chaseMemorySeconds = 3f;
+    [Tooltip("Probabilidad (0..1) de ignorar un hint recibido del Inteligente. Mayor en fácil.")]
+    [Range(0f, 1f)] public float hintIgnoreChance = 0.5f;
+    [Tooltip("Cooldown (s) entre ataques sucesivos.")]
+    public float attackCooldown = 2.5f;
+    [Tooltip("Segundos que el enemigo se queda en modo Walk (sin poder atacar/correr) tras impactar.")]
+    public float postAttackWalkSeconds = 4f;
 }
 
 public class DifficultyManager : MonoBehaviour
@@ -28,10 +36,10 @@ public class DifficultyManager : MonoBehaviour
     public static DifficultyManager Instance { get; private set; }
 
     [SerializeField] Difficulty current = Difficulty.Medium;
-    [SerializeField] DifficultySettings easy   = new() { level = Difficulty.Easy,       pickupsRequired = 4, baseAggression = 0.1f, omniscience = 0f,    roomSpawnChance = 0.05f, postRoomSpawnDistance = 60f, soundReactivity = 0f,    chaseSpeedMul = 0.85f, hintFrequencyMul = 0.5f };
-    [SerializeField] DifficultySettings medium = new() { level = Difficulty.Medium,     pickupsRequired = 6, baseAggression = 0.35f, omniscience = 0.1f,  roomSpawnChance = 0.2f,  postRoomSpawnDistance = 35f, soundReactivity = 0.5f,  chaseSpeedMul = 1f,    hintFrequencyMul = 1f };
-    [SerializeField] DifficultySettings hard   = new() { level = Difficulty.Hard,       pickupsRequired = 8, baseAggression = 0.6f,  omniscience = 0.35f, roomSpawnChance = 0.35f, postRoomSpawnDistance = 18f, soundReactivity = 0.85f, chaseSpeedMul = 1.15f, hintFrequencyMul = 1.6f };
-    [SerializeField] DifficultySettings impossible = new() { level = Difficulty.Impossible, pickupsRequired = 10, baseAggression = 1f, omniscience = 1f, roomSpawnChance = 0.6f, postRoomSpawnDistance = 8f, soundReactivity = 1f, chaseSpeedMul = 1.3f, hintFrequencyMul = 2.5f };
+    [SerializeField] DifficultySettings easy       = new() { level = Difficulty.Easy,       pickupsRequired = 4,  baseAggression = 0.1f,  omniscience = 0f,    roomSpawnChance = 0.05f, postRoomSpawnDistance = 60f, soundReactivity = 0f,    chaseSpeedMul = 0.85f, hintFrequencyMul = 0.5f, chaseMemorySeconds = 1.5f, hintIgnoreChance = 0.7f, attackCooldown = 4f,   postAttackWalkSeconds = 6f };
+    [SerializeField] DifficultySettings medium     = new() { level = Difficulty.Medium,     pickupsRequired = 6,  baseAggression = 0.35f, omniscience = 0.1f,  roomSpawnChance = 0.2f,  postRoomSpawnDistance = 35f, soundReactivity = 0.5f,  chaseSpeedMul = 1f,    hintFrequencyMul = 1f,   chaseMemorySeconds = 3f,   hintIgnoreChance = 0.4f, attackCooldown = 3f,   postAttackWalkSeconds = 4f };
+    [SerializeField] DifficultySettings hard       = new() { level = Difficulty.Hard,       pickupsRequired = 8,  baseAggression = 0.6f,  omniscience = 0.35f, roomSpawnChance = 0.35f, postRoomSpawnDistance = 18f, soundReactivity = 0.85f, chaseSpeedMul = 1.15f, hintFrequencyMul = 1.6f, chaseMemorySeconds = 5f,   hintIgnoreChance = 0.15f, attackCooldown = 2f,   postAttackWalkSeconds = 2f };
+    [SerializeField] DifficultySettings impossible = new() { level = Difficulty.Impossible, pickupsRequired = 10, baseAggression = 1f,    omniscience = 1f,    roomSpawnChance = 0.6f,  postRoomSpawnDistance = 8f,  soundReactivity = 1f,    chaseSpeedMul = 1.3f,  hintFrequencyMul = 2.5f, chaseMemorySeconds = 8f,   hintIgnoreChance = 0f,    attackCooldown = 1f,   postAttackWalkSeconds = 0.5f };
 
     public Difficulty Current => current;
 

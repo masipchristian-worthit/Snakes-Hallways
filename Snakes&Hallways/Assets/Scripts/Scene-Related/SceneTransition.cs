@@ -4,10 +4,45 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+public enum TransitionVariant
+{
+    [Tooltip("Empieza opaco y se desvanece a transparente. Úsalo al entrar a una escena.")]
+    EntryDissolveIn = 0,
+    [Tooltip("Empieza transparente y se opaca. Útil si quieres una salida automática.")]
+    ExitFadeToBlack = 1,
+    [Tooltip("No hace nada al arrancar. Solo responde a llamadas explícitas (FadeAndLoad, FadeAction, etc.).")]
+    Manual = 2,
+}
+
 [RequireComponent(typeof(Canvas))]
 public class SceneTransition : MonoBehaviour
 {
     public static SceneTransition Instance { get; private set; }
+
+    /// <summary>
+    /// Auto-bootstrap: garantiza que existe SceneTransition al cargar cualquier escena,
+    /// sin necesidad de ponerlo en la jerarquía. Si ya hay uno en escena (manual o por
+    /// otra carga), lo respeta.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void Bootstrap()
+    {
+        if (Instance != null) return;
+        // Si el usuario ya tiene uno en escena, su Awake habrá puesto Instance.
+        // Si no, creamos uno automáticamente — funcionará para el fade-in inicial y para usos como SpyCamController.
+        var existing = FindFirstObjectByType<SceneTransition>();
+        if (existing != null) return; // Awake aún no ha corrido pero existe en jerarquía: que él se haga cargo.
+        var go = new GameObject("SceneTransition (auto)");
+        go.AddComponent<Canvas>();
+        go.AddComponent<SceneTransition>();
+    }
+
+    public static SceneTransition EnsureInstance()
+    {
+        if (Instance != null) return Instance;
+        Bootstrap();
+        return Instance;
+    }
 
     [Header("Overlay")]
     [SerializeField] Image fadeImage;
@@ -26,8 +61,14 @@ public class SceneTransition : MonoBehaviour
     [Range(0f, 4f)][SerializeField] float edgeIntensity = 1.8f;
 
     [Header("Defaults")]
-    [Tooltip("Duración de la disolución de entrada al cargar una escena (segundos).")]
+    [Tooltip("Qué hace este SceneTransition al arrancar la escena. Cámbialo desde el dropdown.")]
+    [SerializeField] TransitionVariant variant = TransitionVariant.EntryDissolveIn;
+    [Tooltip("Duración del fade automático en Start (segundos).")]
     [SerializeField] float defaultDissolveInTime = 1.4f;
+    [Tooltip("Si está activado, el fade automático SIEMPRE usa un fade alpha plano (sin shader). Útil si el dissolve no funciona en tu setup.")]
+    [SerializeField] bool forcePlainAlpha = false;
+
+    public TransitionVariant Variant { get => variant; set => variant = value; }
 
     // ── Spawn point registry ──────────────────────────────────────────────────
     static readonly List<SpawnPoint> spawnPoints = new List<SpawnPoint>();
@@ -83,6 +124,21 @@ public class SceneTransition : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
+        // Forzamos el Canvas a Screen Space - Overlay con sortingOrder alto.
+        // Si estuviera en "Screen Space - Camera" referenciando la cámara del player,
+        // al desactivar esa cámara (modo espía) el overlay dejaría de renderizarse.
+        var canvas = GetComponent<Canvas>();
+        if (canvas != null)
+        {
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 32760;
+            canvas.pixelPerfect = false;
+        }
+        var scaler = GetComponent<UnityEngine.UI.CanvasScaler>();
+        if (scaler == null) scaler = gameObject.AddComponent<UnityEngine.UI.CanvasScaler>();
+        scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+
         if (fadeImage == null)
         {
             var go = new GameObject("FadeImage");
@@ -104,12 +160,39 @@ public class SceneTransition : MonoBehaviour
 
     void Start()
     {
-        // Initial scene: sceneLoaded won't fire because we subscribed in Awake AFTER it had already loaded.
-        // Trigger the entry dissolve here.
-        if (!initialDissolvePlayed)
+        if (initialDissolvePlayed) return;
+        initialDissolvePlayed = true;
+        RunVariantOnStart();
+    }
+
+    void RunVariantOnStart()
+    {
+        switch (variant)
         {
-            initialDissolvePlayed = true;
-            StartCoroutine(FadeFromBlack(defaultDissolveInTime));
+            case TransitionVariant.EntryDissolveIn:
+                SetOverlayOpaque();
+                StartCoroutine(FadeFromBlack(defaultDissolveInTime));
+                break;
+            case TransitionVariant.ExitFadeToBlack:
+                SetOverlayTransparent();
+                StartCoroutine(FadeToBlack(defaultDissolveInTime));
+                break;
+            case TransitionVariant.Manual:
+                SetOverlayTransparent();
+                break;
+        }
+    }
+
+    void SetOverlayTransparent()
+    {
+        if (forcePlainAlpha || !useDissolve || dissolveMat == null)
+        {
+            if (fadeImage) { fadeImage.material = null; fadeImage.color = WithAlpha(fadeColor, 0f); }
+        }
+        else
+        {
+            dissolveMat.SetFloat(IdCutoff, 1f);
+            if (fadeImage) fadeImage.color = Color.white;
         }
     }
 
@@ -127,13 +210,15 @@ public class SceneTransition : MonoBehaviour
     // ── Material setup ────────────────────────────────────────────────────────
     void SetupDissolveMaterial()
     {
-        if (!useDissolve) { fadeImage.color = WithAlpha(fadeColor, 1f); return; }
+        if (!useDissolve) { fadeImage.color = WithAlpha(fadeColor, 1f); fadeImage.material = null; return; }
 
         if (dissolveShader == null) dissolveShader = Shader.Find("UI/Dissolve");
-        if (dissolveShader == null)
+        if (dissolveShader == null || !dissolveShader.isSupported)
         {
-            Debug.LogWarning("[SceneTransition] Shader 'UI/Dissolve' no encontrado. Cayendo a fade alpha plano.", this);
+            Debug.LogWarning("[SceneTransition] Shader 'UI/Dissolve' no encontrado o no soportado en el build. Usando fade alpha plano.", this);
             useDissolve = false;
+            fadeImage.material = null;
+            fadeImage.color = WithAlpha(fadeColor, 1f);
             return;
         }
 
@@ -174,14 +259,14 @@ public class SceneTransition : MonoBehaviour
 
     void SetOverlayOpaque()
     {
-        if (useDissolve && dissolveMat != null)
+        if (!forcePlainAlpha && useDissolve && dissolveMat != null)
         {
             dissolveMat.SetFloat(IdCutoff, 0f);
             fadeImage.color = Color.white;
         }
         else
         {
-            fadeImage.color = WithAlpha(fadeColor, 1f);
+            if (fadeImage) { fadeImage.material = null; fadeImage.color = WithAlpha(fadeColor, 1f); }
         }
     }
 
@@ -192,10 +277,15 @@ public class SceneTransition : MonoBehaviour
         // t01 = 0 → fully opaque (black covering screen).
         // t01 = 1 → fully transparent (scene visible).
         t01 = Mathf.Clamp01(t01);
-        if (useDissolve && dissolveMat != null)
+        if (!forcePlainAlpha && useDissolve && dissolveMat != null)
+        {
             dissolveMat.SetFloat(IdCutoff, t01);
+            if (fadeImage) fadeImage.color = Color.white;
+        }
         else
-            fadeImage.color = WithAlpha(fadeColor, 1f - t01);
+        {
+            if (fadeImage) { fadeImage.material = null; fadeImage.color = WithAlpha(fadeColor, 1f - t01); }
+        }
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -220,6 +310,26 @@ public class SceneTransition : MonoBehaviour
     public void WarpInScene(string spawnId, float fadeTime = 0.4f)
     {
         StartCoroutine(WarpInSceneCo(spawnId, fadeTime));
+    }
+
+    /// <summary>
+    /// Fade a negro, ejecuta `mid` (típicamente cambiar de cámara), espera `hold`,
+    /// y fade a transparente. Útil para transiciones in-scene reutilizando el
+    /// mismo overlay/dissolve que usa el cambio de escena.
+    /// </summary>
+    public Coroutine FadeAction(System.Action mid, float fadeInTime = 0.35f, float hold = 0.08f, float fadeOutTime = 0.45f)
+    {
+        return StartCoroutine(FadeActionCo(mid, fadeInTime, hold, fadeOutTime));
+    }
+
+    IEnumerator FadeActionCo(System.Action mid, float fadeInTime, float hold, float fadeOutTime)
+    {
+        yield return StartCoroutine(FadeToBlack(fadeInTime));
+        // Asegúrate de que el overlay opaco ya pintó al menos un frame antes de tocar cámaras.
+        yield return null;
+        try { mid?.Invoke(); } catch (System.Exception e) { Debug.LogException(e); }
+        if (hold > 0f) yield return new WaitForSecondsRealtime(hold);
+        yield return StartCoroutine(FadeFromBlack(fadeOutTime));
     }
 
     IEnumerator FadeAndLoadCo(string sceneName, string spawnId, float fadeTime)

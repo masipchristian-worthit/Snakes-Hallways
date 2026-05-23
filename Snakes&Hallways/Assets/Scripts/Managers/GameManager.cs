@@ -10,8 +10,9 @@ public class GameManager : MonoBehaviour
 
     [Header("Timer")]
     [SerializeField] float matchTime = 600f;
-    [SerializeField] string gameOverScene = "GameOver";
+    [SerializeField] string gameOverScene = "SCN_DeathScene";
     [SerializeField] string winScene = "Win";
+    [SerializeField] float deathFadeTime = 1.5f;
 
     [Header("Refs")]
     [SerializeField] Transform player;
@@ -38,6 +39,12 @@ public class GameManager : MonoBehaviour
         PickupsRequired = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings().pickupsRequired : 6;
         OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
         OnTimerChanged?.Invoke(TimeRemaining);
+
+        // Engancha la muerte del jugador → game over.
+        var playerHealth = player != null
+            ? player.GetComponentInChildren<PlayerHealth>()
+            : FindFirstObjectByType<PlayerHealth>();
+        if (playerHealth != null) playerHealth.OnDied += TriggerGameOver;
     }
 
     void Update()
@@ -76,9 +83,8 @@ public class GameManager : MonoBehaviour
         State = GameState.GameOver;
         AudioManager.Instance?.PlayMusic(MusicId.GameOver);
         OnStateChanged?.Invoke(State);
-        // Si hay un DefeatManager en escena, deja que él muestre la pantalla.
-        if (DefeatManager.Instance == null)
-            SceneTransition.Instance?.FadeAndLoad(gameOverScene, 1.5f);
+        // Fade a negro y carga la escena de muerte.
+        SceneTransition.EnsureInstance()?.FadeAndLoad(gameOverScene, deathFadeTime);
     }
 
     public void TriggerWin()

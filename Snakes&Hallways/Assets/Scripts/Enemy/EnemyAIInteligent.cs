@@ -33,6 +33,8 @@ public class EnemyAIInteligent : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        if (!blindAI) blindAI = GetComponent<EnemyAIBase>();
+        if (!blindAI) blindAI = FindFirstObjectByType<EnemyAIBase>();
     }
 
     void Start()
@@ -45,19 +47,23 @@ public class EnemyAIInteligent : MonoBehaviour
     void Update()
     {
         if (!blindAI || !player) return;
-        if (!DifficultyManager.Instance || !GameManager.Instance) return;
 
-        var diff = DifficultyManager.Instance.GetSettings();
-        float esc = DifficultyManager.Instance.GetEscalation(GameManager.Instance.PickupsCollected, GameManager.Instance.PickupsRequired);
+        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetSettings() : null;
+        float esc = GetEscalation();
 
-        // Omniscience: at impossible, always know exact position.
-        if (Random.value < diff.omniscience * 0.05f)
+        // Sesgo de wander: en cuanto sube la escalación, el minotauro vagabundea más cerca del jugador.
+        // 0 = wander puramente aleatorio; 1 = siempre hacia el jugador.
+        blindAI.WanderBiasToPlayer = Mathf.Clamp01(esc * 0.9f);
+
+        // Omniscience: al máximo, conoce posición exacta.
+        if (diff != null && Random.value < diff.omniscience * 0.05f)
         {
             blindAI.ForceKnownPlayer(player.position);
         }
 
         // Hints
-        hintTimer -= Time.deltaTime * diff.hintFrequencyMul * (0.5f + esc);
+        float hintMul = diff != null ? diff.hintFrequencyMul : 1f;
+        hintTimer -= Time.deltaTime * hintMul * (0.5f + esc);
         if (hintTimer <= 0f)
         {
             hintTimer = Mathf.Lerp(baseHintInterval, minHintInterval, esc);

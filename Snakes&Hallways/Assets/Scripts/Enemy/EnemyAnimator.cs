@@ -1,85 +1,81 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Events;
 
 [RequireComponent(typeof(Animator))]
 public class EnemyAnimator : MonoBehaviour
 {
     [Header("Turn settings")]
-    [Tooltip("Below this angle the enemy turns gradually while moving (no animation).")]
-    [SerializeField] float gradualTurnLimit = 90f;
-    [Tooltip("Degrees per second when turning gradually while moving.")]
-    [SerializeField] float gradualTurnSpeed = 60f;
-    [Tooltip("Lock locomotion this long while playing 90-deg turn.")]
-    [SerializeField] float turn90Lock = 0.6f;
-    [Tooltip("Lock locomotion this long while playing 180-deg turn.")]
-    [SerializeField] float turn180Lock = 1.0f;
+    [Tooltip("Degrees per second when turning while moving.")]
+    [SerializeField] float gradualTurnSpeed = 180f;
+
+    [Header("Eventos")]
+    [Tooltip("Se invoca al entrar en estado Attacking. Engancha aquí la función que reproduce la animación de ataque (p.ej. Animator.Play en un estado, un AnimationClip, un SFX, etc.).")]
+    public UnityEvent OnAttack;
+    [Tooltip("Se invoca al entrar en estado Alert.")]
+    public UnityEvent OnAlert;
 
     Animator anim;
 
     static readonly int HashPatrolling = Animator.StringToHash("Patrolling");
     static readonly int HashChasing    = Animator.StringToHash("Chasing");
-    static readonly int HashAttack     = Animator.StringToHash("Attack");
-    static readonly int HashAlert      = Animator.StringToHash("Alert");
-    static readonly int HashTurn90     = Animator.StringToHash("Turn 90");
-    static readonly int HashTurnNeg90  = Animator.StringToHash("Turn -90");
-    static readonly int HashTurn180    = Animator.StringToHash("Turn 180");
 
-    public bool LocomotionLocked { get; private set; }
+    public bool LocomotionLocked => false;
 
     void Awake() { anim = GetComponent<Animator>(); }
 
     public void SetPatrolling(bool v) => anim.SetBool(HashPatrolling, v);
     public void SetChasing(bool v) => anim.SetBool(HashChasing, v);
 
-    public void TriggerAttack() { StartCoroutine(Fire(HashAttack)); }
-    public void TriggerAlert() { StartCoroutine(Fire(HashAlert)); AudioManager.Instance?.PlaySFX(SFXId.MinotaurNeigh, transform.position); }
-
-    IEnumerator Fire(int hash)
+    public void TriggerAttack() { OnAttack?.Invoke(); }
+    public void TriggerAlert()
     {
-        anim.ResetTrigger(hash);
-        anim.SetTrigger(hash);
-        yield return null;
-    }
-
-    /// <summary>
-    /// Decide whether to turn gradually, play 90/-90 anim, or 180 anim, based on signed angle.
-    /// Returns true if locomotion should be locked (turn animation playing).
-    /// </summary>
-    public bool RequestTurn(float signedAngle, bool isMoving)
-    {
-        float abs = Mathf.Abs(signedAngle);
-        if (abs <= gradualTurnLimit && isMoving)
-        {
-            // Gradual rotation handled by AI; no animation, no lock.
-            return false;
-        }
-
-        if (abs >= 150f)
-        {
-            StartCoroutine(LockFor(turn180Lock));
-            StartCoroutine(Fire(HashTurn180));
-            return true;
-        }
-        // 90-ish
-        StartCoroutine(LockFor(turn90Lock));
-        StartCoroutine(Fire(signedAngle > 0f ? HashTurn90 : HashTurnNeg90));
-        return true;
+        AudioManager.Instance?.PlaySFX(SFXId.MinotaurNeigh, transform.position);
+        OnAlert?.Invoke();
     }
 
     public float GetGradualTurnSpeed() => gradualTurnSpeed;
-    public float GetGradualLimit() => gradualTurnLimit;
 
-    IEnumerator LockFor(float t)
-    {
-        LocomotionLocked = true;
-        yield return new WaitForSeconds(t);
-        LocomotionLocked = false;
-    }
+    [Header("Footstep shake")]
+    [Tooltip("Intensidad base del shake al pisar caminando (se atenúa por distancia en CameraShake).")]
+    [SerializeField] float walkStepShake = 0.15f;
+    [Tooltip("Intensidad base del shake al pisar corriendo.")]
+    [SerializeField] float runStepShake = 0.45f;
+    [SerializeField] float stepShakeDuration = 0.18f;
+
+    [Header("Footstep SFX")]
+    [Tooltip("ID del sonido reproducido en pisadas de Walk.")]
+    [SerializeField] SFXId walkStepSfx = SFXId.MinotaurStep;
+    [Tooltip("ID del sonido reproducido en pisadas de Run.")]
+    [SerializeField] SFXId runStepSfx = SFXId.MinotaurStep;
+
+    [Tooltip("Se invoca al pisar caminando (Animation Event 'FootstepWalk'). Engánchalo a SFX, partículas, etc.")]
+    public UnityEngine.Events.UnityEvent OnFootstepWalk;
+    [Tooltip("Se invoca al pisar corriendo (Animation Event 'FootstepRun'). Engánchalo a SFX, partículas, etc.")]
+    public UnityEngine.Events.UnityEvent OnFootstepRun;
 
     // Animation Event called from Run animation at the swing/charge frame.
     public void AttackFrame()
     {
         var ai = GetComponent<EnemyAIBase>();
         ai?.OnAttackFrame();
+    }
+
+    /// <summary>Animation Event: pisada caminando. Dispara shake + UnityEvent.</summary>
+    public void FootstepWalk()
+    {
+        CameraShake.Shake(transform.position, walkStepShake, stepShakeDuration);
+        if (walkStepSfx != SFXId.None)
+            AudioManager.Instance?.PlaySFX(walkStepSfx, transform.position);
+        OnFootstepWalk?.Invoke();
+    }
+
+    /// <summary>Animation Event: pisada corriendo. Dispara shake + UnityEvent + SFX.</summary>
+    public void FootstepRun()
+    {
+        CameraShake.Shake(transform.position, runStepShake, stepShakeDuration);
+        if (runStepSfx != SFXId.None)
+            AudioManager.Instance?.PlaySFX(runStepSfx, transform.position);
+        OnFootstepRun?.Invoke();
     }
 }

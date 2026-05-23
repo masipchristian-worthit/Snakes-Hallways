@@ -9,6 +9,7 @@ TagManager:
   - PickUp
   - EnemyAttack
   - Interactable
+  - Enemy
   layers:
   - Default
   - TransparentFX
