@@ -17,8 +17,8 @@ MonoBehaviour:
     m_OverrideState: 1
     m_Value: {x: 1, y: 0.961629, z: 0.9699396, w: -0.026720157}
   gamma:
-    m_OverrideState: 0
-    m_Value: {x: 1, y: 1, z: 1, w: 0.033400234}
+    m_OverrideState: 1
+    m_Value: {x: 1, y: 1, z: 1, w: 0}
   gain:
     m_OverrideState: 1
     m_Value: {x: 1, y: 1, z: 1, w: -0.42084175}
@@ -103,7 +103,7 @@ MonoBehaviour:
     m_Value: 2
   intensity:
     m_OverrideState: 1
-    m_Value: 0.305
+    m_Value: 0.448
   clamp:
     m_OverrideState: 1
     m_Value: 0.1
@@ -161,10 +161,10 @@ MonoBehaviour:
   active: 1
   postExposure:
     m_OverrideState: 1
-    m_Value: 0.83
+    m_Value: 1.11
   contrast:
     m_OverrideState: 1
-    m_Value: 13
+    m_Value: 50
   colorFilter:
     m_OverrideState: 1
     m_Value: {r: 1.2311444, g: 1.2311444, b: 1.2311444, a: 1}
@@ -311,13 +311,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bd486065ce11414fa40e631affc4900, type: 3}
   m_Name: ProbeVolumesOptions
   m_EditorClassIdentifier: 
-  active: 0
+  active: 1
   normalBias:
     m_OverrideState: 1
-    m_Value: 0.33
+    m_Value: 0.05
   viewBias:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: 0.1
   scaleBiasWithMinProbeDistance:
     m_OverrideState: 1
     m_Value: 0
@@ -329,7 +329,7 @@ MonoBehaviour:
     m_Value: 1
   leakReductionMode:
     m_OverrideState: 1
-    m_Value: 1
+    m_Value: 2
   minValidDotProductValue:
     m_OverrideState: 1
     m_Value: 0.1
@@ -479,7 +479,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   active: 1
   intensity:
-    m_OverrideState: 0
+    m_OverrideState: 1
     m_Value: 0
   tintColor:
     m_OverrideState: 1
@@ -547,10 +547,10 @@ MonoBehaviour:
   active: 1
   shadows:
     m_OverrideState: 1
-    m_Value: {x: 1, y: 0.7251463, z: 0.7861135, w: 0.040080156}
+    m_Value: {x: 1, y: 0.7251463, z: 0.7861135, w: 0.10124218}
   midtones:
     m_OverrideState: 1
-    m_Value: {x: 1, y: 0.7693731, z: 0.76113194, w: -0.18036044}
+    m_Value: {x: 1, y: 0.7693731, z: 0.76113194, w: -0.042745776}
   highlights:
     m_OverrideState: 1
     m_Value: {x: 0.97525924, y: 0.9775432, z: 1, w: 0.1670009}
@@ -776,7 +776,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e021b4c809a781e468c2988c016ebbea, type: 3}
   m_Name: ColorLookup
   m_EditorClassIdentifier: 
-  active: 0
+  active: 1
   texture:
     m_OverrideState: 1
     m_Value: {fileID: 0}
