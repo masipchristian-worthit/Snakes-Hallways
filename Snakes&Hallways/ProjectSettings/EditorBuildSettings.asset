@@ -11,6 +11,24 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SCN_MainMenu.unity
     guid: 9b6906493ec8eac44b7c773659c43410
+  - enabled: 1
+    path: Assets/Scenes/SCN_Settings.unity
+    guid: 9b3bf24d85b711b418b8ae3169649113
+  - enabled: 1
+    path: Assets/Scenes/SCN_Difficulty.unity
+    guid: b7caedfe4cb462a4dbd43f7281d0febd
+  - enabled: 1
+    path: Assets/Scenes/SCN_Introduction.unity
+    guid: c9ce0aed9b8a37f498b3eebe69d543eb
+  - enabled: 1
+    path: Assets/Scenes/SCN_Game.unity
+    guid: 746c076948d1fc84cb7442cd538e9266
+  - enabled: 1
+    path: Assets/Scenes/SCN_EndingScene.unity
+    guid: 1d7af92ded3205847bce653e32af42a7
+  - enabled: 1
+    path: Assets/Scenes/SCN_DeathScene.unity
+    guid: d66c4d7e77161ed458b0fe0b99de90a5
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

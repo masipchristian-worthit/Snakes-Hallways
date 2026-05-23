@@ -20,12 +20,12 @@ public class SceneWarp : MonoBehaviour
     public enum WarpMode { SameScene, LoadScene }
 
     [Header("Modo")]
-    [SerializeField] WarpMode mode = WarpMode.SameScene;
+    [SerializeField] WarpMode mode = WarpMode.LoadScene;
 
     [Header("Destino")]
     [Tooltip("Nombre de la escena destino (solo para modo LoadScene).")]
     [SerializeField] string targetSceneName = "";
-    [Tooltip("Id del SpawnPoint donde aparecerá el jugador. Deja vacío para no mover al jugador.")]
+    [Tooltip("Id del SpawnPoint donde aparecerá el jugador. OPCIONAL en LoadScene: si está vacío se carga la escena tal cual y el jugador aparece donde lo coloque la propia escena. OBLIGATORIO en SameScene.")]
     [SerializeField] string targetSpawnId = "";
 
     [Header("Transición")]
