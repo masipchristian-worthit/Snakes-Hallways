@@ -875,8 +875,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2319538ce4b8f7c4b838becc8e61ff94, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SceneWarp
-  mode: 1
-  targetSceneName: SCN_Settings
+  mode: 0
+  targetSceneName: 
   targetSpawnId: 
   fadeTime: 0.5
   triggerOnEnter: 0
@@ -1119,10 +1119,10 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 412861930}
+  - {fileID: 565721283}
   - {fileID: 823953193}
   - {fileID: 1037320523}
   - {fileID: 784526100}
-  - {fileID: 565721283}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}

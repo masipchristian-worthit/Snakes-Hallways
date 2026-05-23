@@ -18,7 +18,18 @@
       "mcp__Blender__jump_to_tab_by_space_type",
       "Bash(git push *)",
       "Bash(tee push_output.txt)",
-      "PowerShell(git push origin Moneda)"
+      "PowerShell(git push origin Moneda)",
+      "Bash(ffmpeg -version)",
+      "PowerShell(Get-Command ffmpeg -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-ChildItem \"$env:APPDATA\\\\Blender Foundation\" -ErrorAction SilentlyContinue | Select-Object Name; Get-ChildItem \"C:\\\\Program Files\\\\Blender Foundation\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "Bash(where.exe ffmpeg *)",
+      "Bash(where.exe ffmpeg.exe)",
+      "Bash(powershell.exe -Command \"Get-Command ffmpeg -ErrorAction SilentlyContinue\")",
+      "Read(//c/Users/coin/scoop/**)",
+      "Read(//c/ProgramData/chocolatey/**)",
+      "Bash(winget install *)",
+      "Bash(FFMPEG=\"C:/Users/coin/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe\" *)",
+      "Bash(C:/Users/coin/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe -y -framerate 30 -i 'C:/Users/coin/Desktop/wualuigi renders/Front/%04d.png' -c:v libx264 -pix_fmt yuv420p -crf 18 'C:/Users/coin/Desktop/wualuigi renders/Waluigi_Front.mp4')"
     ]
   }
 }
