@@ -40,13 +40,43 @@ Shader "Custom/MainShader"
                       _StylizedAOContrast ("AO Overlay Contrast",     Range(0.1,3)) = 1.20
                       _StylizedAOScale    ("AO Overlay Scale world",  Float)        = 0.35
 
-        [Header(Scene Extremes AO  distance darken)]
-                      _AOExtremesStrength ("AO Extremes Strength",    Range(0,1))   = 0.45
-                      _AOStartDistance    ("AO Start Distance m",     Float)        = 4.0
-                      _AOEndDistance      ("AO End Distance m",       Float)        = 14.0
+        [Header(Screen Space Fake AO)]
+                      _FakeAOStrength          ("Fake AO Strength",            Range(0,3))   = 1.0
+                      _FakeAONormalSensitivity ("Normal Edge Sensitivity",     Range(0,10))  = 2.5
+                      _FakeAODepthSensitivity  ("Depth Edge Sensitivity",      Range(0,10))  = 1.0
+                      _FakeAOContrast          ("Fake AO Contrast",            Range(0.1,4)) = 1.5
+                      _FakeAOTint              ("Fake AO Tint",                Color)        = (0,0,0,1)
+
+        [Header(Distance Driven Intensity)]
+                      _ViewMinDistance         ("View Min Distance m",         Float)        = 2.0
+                      _ViewMaxDistance         ("View Max Distance m",         Float)        = 18.0
+                      _AONearStrength          ("AO Near Multiplier",          Range(0,2))   = 0.0
+                      _AOFarStrength           ("AO Far Multiplier",           Range(0,2))   = 1.0
+                      _AOFalloffPower          ("AO Falloff Power",            Range(0.1,8)) = 2.5
+
+        [Header(Shadow Accumulation)]
+                      _ShadowAOBoost           ("Shadow AO Boost",             Range(1,5))   = 1.5
+                      _ShadowAOThreshold       ("Shadow Luma Threshold",       Range(0,1))   = 0.35
+
+        [Header(Dither and PSX Palette)]
+                      _DitherStrength          ("AO Dither Strength",          Range(0,1))   = 0.15
+                      _DitherScale             ("Dither Pixel Scale",          Range(1,8))   = 1.0
+                      _HighlightDither         ("Highlight Granulate",         Range(0,1))   = 0.15
+                      _HighlightThreshold      ("Highlight Luma Threshold",    Range(0,2))   = 0.85
+                      _PaletteSteps            ("Palette Steps per Channel",   Range(2,64))  = 48
+                      _PaletteSaturation       ("Palette Saturation",          Range(0,1.5)) = 1.00
 
         [Header(Highlight Softness  Reinhard rolloff)]
-                      _HighlightSoftness  ("Highlight Softness",      Range(0,1))   = 0.15
+                      _HighlightSoftness       ("Highlight Softness",          Range(0,1))   = 0.10
+
+        [Header(Ambient Lift  unlit visibility floor  OFF by default)]
+                      _AmbientLift             ("Ambient Lift",                Range(0,1))   = 0.0
+                      _AmbientLiftFadeDistance ("Ambient Lift Fade Distance m",Float)        = 8.0
+                      _AmbientLiftTint         ("Ambient Lift Tint",           Color)        = (1,1,1,1)
+
+        [Header(Exposure and Burn Control)]
+                      _Exposure                ("Exposure",                    Range(0,3))   = 1.0
+                      _MaxBrightness           ("Max Brightness Clamp",        Range(0.5,8)) = 8.0
     }
 
     SubShader
@@ -115,10 +145,37 @@ Shader "Custom/MainShader"
                 float  _StylizedAOStrength;
                 float  _StylizedAOContrast;
                 float  _StylizedAOScale;
-                float  _AOExtremesStrength;
-                float  _AOStartDistance;
-                float  _AOEndDistance;
+
+                float  _FakeAOStrength;
+                float  _FakeAONormalSensitivity;
+                float  _FakeAODepthSensitivity;
+                float  _FakeAOContrast;
+                float4 _FakeAOTint;
+
+                float  _ViewMinDistance;
+                float  _ViewMaxDistance;
+                float  _AONearStrength;
+                float  _AOFarStrength;
+                float  _AOFalloffPower;
+
+                float  _ShadowAOBoost;
+                float  _ShadowAOThreshold;
+
+                float  _DitherStrength;
+                float  _DitherScale;
+                float  _HighlightDither;
+                float  _HighlightThreshold;
+                float  _PaletteSteps;
+                float  _PaletteSaturation;
+
                 float  _HighlightSoftness;
+
+                float  _AmbientLift;
+                float  _AmbientLiftFadeDistance;
+                float4 _AmbientLiftTint;
+
+                float  _Exposure;
+                float  _MaxBrightness;
             CBUFFER_END
 
             TEXTURE2D(_BaseMap);          SAMPLER(sampler_BaseMap);
@@ -153,6 +210,29 @@ Shader "Custom/MainShader"
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
+
+            // ============================================================
+            // 8x8 Bayer matrix for ordered dithering (PSX / Buckshot style)
+            // Values normalized to [0, 1).
+            // ============================================================
+            static const float kBayer8x8[64] =
+            {
+                 0.0/64.0, 32.0/64.0,  8.0/64.0, 40.0/64.0,  2.0/64.0, 34.0/64.0, 10.0/64.0, 42.0/64.0,
+                48.0/64.0, 16.0/64.0, 56.0/64.0, 24.0/64.0, 50.0/64.0, 18.0/64.0, 58.0/64.0, 26.0/64.0,
+                12.0/64.0, 44.0/64.0,  4.0/64.0, 36.0/64.0, 14.0/64.0, 46.0/64.0,  6.0/64.0, 38.0/64.0,
+                60.0/64.0, 28.0/64.0, 52.0/64.0, 20.0/64.0, 62.0/64.0, 30.0/64.0, 54.0/64.0, 22.0/64.0,
+                 3.0/64.0, 35.0/64.0, 11.0/64.0, 43.0/64.0,  1.0/64.0, 33.0/64.0,  9.0/64.0, 41.0/64.0,
+                51.0/64.0, 19.0/64.0, 59.0/64.0, 27.0/64.0, 49.0/64.0, 17.0/64.0, 57.0/64.0, 25.0/64.0,
+                15.0/64.0, 47.0/64.0,  7.0/64.0, 39.0/64.0, 13.0/64.0, 45.0/64.0,  5.0/64.0, 37.0/64.0,
+                63.0/64.0, 31.0/64.0, 55.0/64.0, 23.0/64.0, 61.0/64.0, 29.0/64.0, 53.0/64.0, 21.0/64.0
+            };
+
+            float Bayer8x8(uint2 p)
+            {
+                uint x = p.x & 7u;
+                uint y = p.y & 7u;
+                return kBayer8x8[y * 8u + x];
+            }
 
             Varyings LitPassVertex(Attributes IN)
             {
@@ -256,31 +336,128 @@ Shader "Custom/MainShader"
                 inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(IN.positionCS);
                 inputData.shadowMask           = SAMPLE_SHADOWMASK(IN.lightmapUV);
 
-                // ===== SCENE EXTREMES AO =====
-                // Darkens the lit result with distance from camera (neutral, no tint).
-                // Produces the "player halo of light" horror feel without burning silhouettes.
                 float camDist = length(_WorldSpaceCameraPos - wpos);
-                float aoFade  = saturate((camDist - _AOStartDistance) /
-                                          max(_AOEndDistance - _AOStartDistance, 1e-3));
-                float aoMul   = lerp(1.0, 1.0 - _AOExtremesStrength, aoFade);
-
-                // Apply to albedo and baked GI so direct + indirect lighting both fade.
-                // Emission stays untouched (handled inside UniversalFragmentPBR via sd.emission).
-                sd.albedo            *= aoMul;
-                inputData.bakedGI    *= aoMul;
 
                 half4 color = UniversalFragmentPBR(inputData, sd);
 
-                // ===== HIGHLIGHT SOFTNESS (Reinhard rolloff on lighting only) =====
-                // Subtract emission, soften, re-add emission so torches keep punch.
-                if (_HighlightSoftness > 0.0)
+                // ============================================================
+                // EXPOSURE  (linear lighting multiplier; affects everything
+                // downstream including emission. Set < 1 to dim, > 1 to brighten.)
+                // ============================================================
+                color.rgb *= _Exposure;
+
+                // ============================================================
+                // SCREEN-SPACE FAKE AO  (Buckshot/Lethal/REPO style)
+                //   Detects normal discontinuities (corners, joints) via
+                //   ddx/ddy of world normal, and depth gaps (mesh silhouettes
+                //   against farther geometry) via ddx/ddy of camera distance.
+                //   Output is multiplied by distance ramp, shadow boost and
+                //   dithered with an 8x8 Bayer matrix.
+                // ============================================================
+
+                // --- Geometric edge signal ---
+                //   IMPORTANT: use wnG (unperturbed geometric normal), not the
+                //   normal-mapped normalWS. Otherwise every texture detail
+                //   (brick cracks, stone bumps) registers as a "corner" and
+                //   the whole surface darkens to mud.
+                float3 nDx = ddx(wnG);
+                float3 nDy = ddy(wnG);
+                float normCurv = (length(nDx) + length(nDy)) * _FakeAONormalSensitivity;
+
+                float depthGrad = length(float2(ddx(camDist), ddy(camDist)));
+                float depthEdge = saturate(depthGrad / max(camDist, 0.01)) * _FakeAODepthSensitivity;
+
+                float aoRaw = pow(saturate(normCurv + depthEdge), _FakeAOContrast);
+
+                // --- Distance ramp: closer to ViewMax = stronger AO ---
+                //   Apply a falloff power so AO stays near-zero until close
+                //   to ViewMaxDistance. With power 2.5, at 50% of the range
+                //   we are only at 0.18 strength, so visibility is preserved.
+                float distT   = saturate((camDist - _ViewMinDistance) /
+                                          max(_ViewMaxDistance - _ViewMinDistance, 0.01));
+                distT         = pow(distT, max(_AOFalloffPower, 0.01));
+                float distMul = lerp(_AONearStrength, _AOFarStrength, distT);
+
+                // --- Shadow accumulation: dark areas eat more AO ---
+                float luma       = dot(color.rgb, float3(0.299, 0.587, 0.114));
+                float shadowMask = 1.0 - smoothstep(0.0, _ShadowAOThreshold, luma);
+                float shadowMul  = lerp(1.0, _ShadowAOBoost, shadowMask);
+
+                float ao = aoRaw * _FakeAOStrength * distMul * shadowMul;
+
+                // --- Bayer dither the AO mask ---
+                uint2 pixCoord = uint2(IN.positionCS.xy / max(_DitherScale, 1.0));
+                float bayer    = Bayer8x8(pixCoord);
+                ao = saturate(ao + (bayer - 0.5) * _DitherStrength);
+
+                // --- Apply darkening to lighting (preserve emission) ---
                 {
-                    float3 lit   = max(color.rgb - sd.emission, 0.0);
-                    float3 soft  = lit / (1.0 + lit * _HighlightSoftness);
-                    color.rgb    = soft + sd.emission;
+                    float3 lit = max(color.rgb - sd.emission, 0.0);
+                    lit = lerp(lit, _FakeAOTint.rgb, ao);
+                    color.rgb = lit + sd.emission;
                 }
 
-                color.rgb   = MixFog(color.rgb, IN.fogFactor);
+                // ============================================================
+                // HIGHLIGHT GRANULATION
+                //   Dithers bright pixels (light highlights) for PSX feel.
+                // ============================================================
+                {
+                    float litLuma = dot(color.rgb, float3(0.299, 0.587, 0.114));
+                    float hMask   = saturate((litLuma - _HighlightThreshold) * 2.0);
+                    float hD      = (bayer - 0.5) * _HighlightDither * hMask;
+                    color.rgb = saturate(color.rgb + hD);
+                }
+
+                // ============================================================
+                // HIGHLIGHT SOFTNESS (Reinhard rolloff on lighting only)
+                // ============================================================
+                if (_HighlightSoftness > 0.0)
+                {
+                    float3 lit2 = max(color.rgb - sd.emission, 0.0);
+                    float3 soft = lit2 / (1.0 + lit2 * _HighlightSoftness);
+                    color.rgb   = soft + sd.emission;
+                }
+
+                // ============================================================
+                // PSX PALETTE QUANTIZATION
+                //   Reduce saturation then quantize per channel with bayer
+                //   dithering so gradients stay smooth despite low step count.
+                // ============================================================
+                {
+                    float palLuma = dot(color.rgb, float3(0.299, 0.587, 0.114));
+                    color.rgb = lerp(palLuma.xxx, color.rgb, _PaletteSaturation);
+
+                    float pSteps = max(_PaletteSteps, 2.0);
+                    color.rgb = floor(color.rgb * pSteps + (bayer - 0.5)) / pSteps;
+                }
+
+                // ============================================================
+                // MAX BRIGHTNESS CLAMP  (anti-burn ceiling)
+                //   Hard ceiling per-channel. Combined with _HighlightSoftness
+                //   (Reinhard) above, gives both smooth rolloff and a hard cap.
+                //   Set higher to allow more burn; lower to flatten highlights.
+                // ============================================================
+                color.rgb = min(color.rgb, _MaxBrightness.xxx);
+
+                // ============================================================
+                // AMBIENT LIFT  (off by default; uses ALBEDO to preserve color)
+                //   Lifts dark/unlit pixels back to a fraction of their own
+                //   albedo color instead of toward gray/white. This way
+                //   bricks stay brick-colored, stone stays stone-colored.
+                //   Fades to 0 at _AmbientLiftFadeDistance so far pixels can
+                //   stay pitch black.
+                //   Applied LAST so palette quantization does not affect it.
+                // ============================================================
+                if (_AmbientLift > 0.0)
+                {
+                    float liftFade = saturate(1.0 - camDist /
+                                               max(_AmbientLiftFadeDistance, 0.01));
+                    float3 liftCol = sd.albedo * _AmbientLiftTint.rgb *
+                                     (_AmbientLift * liftFade);
+                    color.rgb = max(color.rgb, liftCol);
+                }
+
+                color.rgb = MixFog(color.rgb, IN.fogFactor);
                 return color;
             }
             ENDHLSL
