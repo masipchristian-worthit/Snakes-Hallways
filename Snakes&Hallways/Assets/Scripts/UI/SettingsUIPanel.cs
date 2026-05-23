@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// Panel de UI que controla todos los settings del SettingsManager.
@@ -19,11 +20,15 @@ public class SettingsUIPanel : MonoBehaviour
     [Header("Graphics")]
     [SerializeField] Toggle fullscreenToggle;
     [SerializeField] Toggle vsyncToggle;
-    [SerializeField] Dropdown resolutionDropdown;
+    [SerializeField] TMP_Dropdown resolutionDropdown;
 
     [Header("Buttons")]
     [SerializeField] Button resetButton;
     [SerializeField] Button closeButton;
+
+    [Header("Close Behavior")]
+    [SerializeField] bool useSceneWarpOnClose = false;
+    [SerializeField] SceneWarp sceneWarpOnClose;
 
     void Start()
     {
@@ -104,7 +109,7 @@ public class SettingsUIPanel : MonoBehaviour
         for (int i = 0; i < resolutions.Length; i++)
         {
             string option = $"{resolutions[i].width}x{resolutions[i].height}@{resolutions[i].refreshRateRatio.numerator}Hz";
-            resolutionDropdown.options.Add(new Dropdown.OptionData(option));
+            resolutionDropdown.options.Add(new TMPro.TMP_Dropdown.OptionData(option));
 
             if (resolutions[i].width == Screen.width && resolutions[i].height == Screen.height)
                 currentIndex = i;
@@ -124,7 +129,18 @@ public class SettingsUIPanel : MonoBehaviour
             resetButton.onClick.AddListener(() => SettingsManager.Instance.ResetAllToDefaults());
 
         if (closeButton != null)
-            closeButton.onClick.AddListener(() => gameObject.SetActive(false));
+        {
+            if (useSceneWarpOnClose && sceneWarpOnClose != null)
+            {
+                // Usa SceneWarp con transición (fade, cargar escena, etc.)
+                closeButton.onClick.AddListener(() => sceneWarpOnClose.Warp());
+            }
+            else
+            {
+                // Solo desactiva el panel
+                closeButton.onClick.AddListener(() => gameObject.SetActive(false));
+            }
+        }
     }
 
     void RefreshUI()
