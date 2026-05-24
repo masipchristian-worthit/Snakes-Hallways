@@ -16,22 +16,41 @@ public class EnemyAIBase : MonoBehaviour
     public enum State { Idle, Patrol, Investigate, Alert, Chase, Attacking, Stunned }
 
     [Header("Patrol")]
+    [Tooltip("Si está vacío, el enemigo patrullará escogiendo puntos aleatorios del NavMesh.")]
     [SerializeField] List<Transform> patrolPoints = new();
     [SerializeField] float patrolWaitTime = 2.5f;
     [SerializeField] float arriveDistance = 1.2f;
+
+    [Header("Patrol — NavMesh wander (cuando no hay patrolPoints)")]
+    [Tooltip("Radio alrededor del enemigo para muestrear puntos aleatorios del NavMesh.")]
+    [SerializeField] float wanderRadius = 18f;
+    [Tooltip("Nº de intentos por elección de punto. Se queda con el mejor candidato según escalación de dificultad.")]
+    [SerializeField] int wanderSampleCount = 6;
+    [Tooltip("Distancia mínima entre puntos consecutivos para no quedarse dando vueltas.")]
+    [SerializeField] float wanderMinStep = 4f;
 
     [Header("Speeds")]
     [SerializeField] float patrolSpeed = 2.2f;
     [SerializeField] float chaseSpeed = 5.2f;
     [SerializeField] float investigateSpeed = 3f;
 
-    [Header("Detection thresholds")]
-    [SerializeField, Range(0f, 1f)] float alertThreshold = 0.45f;
-    [SerializeField, Range(0f, 1f)] float chaseThreshold = 0.85f;
-
     [Header("Attack")]
     [SerializeField] float attackRange = 2.5f;
+    [Tooltip("Duración (s) del estado Attacking. Debe ser >= a la duración de la animación de ataque.")]
+    [SerializeField] float attackDuration = 1.2f;
     [SerializeField] EnemyAttack attackCollider;
+    [Tooltip("Distancia mínima a la que el enemigo intentará quedarse del jugador para no clipear con él.")]
+    [SerializeField] float safetyDistance = 1.6f;
+
+    [Header("Memory by distance")]
+    [Tooltip("Distancia ≤ a esta → memoria al máximo. Más lejos → menos memoria.")]
+    [SerializeField] float closeMemoryDistance = 4f;
+    [Tooltip("Multiplicador de memoria cuando el jugador está cerca.")]
+    [SerializeField] float closeMemoryMultiplier = 1.6f;
+    [Tooltip("Multiplicador de memoria cuando el jugador está al límite del cono.")]
+    [SerializeField] float farMemoryMultiplier = 0.4f;
+    [Tooltip("Distancia a la que se aplica el multiplicador 'far'. Por defecto = viewDistance del EnemyDetection.")]
+    [SerializeField] float farMemoryDistance = 18f;
 
     [Header("Front-detection behavior (back-detection branch)")]
     [Tooltip("If the enemy first sees the player from behind, chance to charge directly without alerting.")]
@@ -52,6 +71,11 @@ public class EnemyAIBase : MonoBehaviour
     Vector3? investigatePoint;
     float investigateTimer;
     float idleSfxTimer;
+    Vector3 currentWanderTarget;
+    bool hasWanderTarget;
+    float chaseMemoryTimer;          // cuenta atrás de "recuerdo" tras perder LoS
+    float attackCooldownTimer;       // cooldown global de ataque
+    float postAttackWalkTimer;       // tiempo restante en modo Walk forzado tras impactar
 
     void Awake()
     {
@@ -67,30 +91,55 @@ public class EnemyAIBase : MonoBehaviour
     {
         var p = GameObject.FindGameObjectWithTag("Player");
         if (p) player = p.transform;
-        SetState(patrolPoints.Count > 0 ? State.Patrol : State.Idle);
+        SetState(State.Patrol); // Patrol funciona también sin patrolPoints (wander por NavMesh).
     }
 
     void Update()
     {
         DifficultyEscalation = ResolveEscalation();
 
-        // Vision -> Alert/Chase escalation
-        if (detection && detection.HasLineOfSight)
+        if (attackCooldownTimer > 0f) attackCooldownTimer -= Time.deltaTime;
+        if (postAttackWalkTimer > 0f) postAttackWalkTimer -= Time.deltaTime;
+
+        bool postAttackLocked = postAttackWalkTimer > 0f;
+
+        // ── VISIÓN REALISTA ─────────────────────────────────────────────
+        // Si el jugador está dentro del cono de visión con LoS clara, el enemigo
+        // INTERRUMPE todo (alert, patrol, investigate…) y persigue inmediatamente.
+        if (detection && detection.HasLineOfSight && player)
         {
-            KnownPlayerPos = player ? player.position : KnownPlayerPos;
-            if (CurrentState != State.Chase && CurrentState != State.Attacking)
+            KnownPlayerPos = player.position;
+
+            // Memoria proporcional a la distancia: cuanto más cerca, más recuerda.
+            // currentDistance ≤ closeDistance → memoria ×1.5
+            // currentDistance ≥ viewDistance  → memoria ×0.4
+            float dist = Vector3.Distance(transform.position, player.position);
+            chaseMemoryTimer = ComputeMemoryDuration(dist);
+
+            if (!postAttackLocked)
             {
-                if (detection.Score >= chaseThreshold)
+                if (CurrentState != State.Chase && CurrentState != State.Attacking)
+                    BeginChase(detection.Visibility); // interrupción dura
+            }
+        }
+        else if (CurrentState == State.Chase || CurrentState == State.Attacking)
+        {
+            // Sin LoS pero seguimos persiguiendo durante chaseMemoryTimer (escalado por dificultad + distancia).
+            chaseMemoryTimer -= Time.deltaTime;
+            if (chaseMemoryTimer <= 0f)
+            {
+                if (KnownPlayerPos.HasValue)
                 {
-                    BeginChase(detection.Visibility);
+                    investigatePoint = KnownPlayerPos;
+                    investigateTimer = 0f;
+                    Agent.SetDestination(KnownPlayerPos.Value);
+                    SetState(State.Investigate);
                 }
-                else if (detection.Score >= alertThreshold && CurrentState != State.Alert)
+                else
                 {
-                    if (detection.Visibility == DetectionVisibility.Frontside)
-                        SetState(State.Alert);
-                    else if (detection.Visibility == DetectionVisibility.Backside)
-                        BeginChase(DetectionVisibility.Backside);
+                    SetState(State.Patrol);
                 }
+                KnownPlayerPos = null;
             }
         }
 
@@ -118,10 +167,12 @@ public class EnemyAIBase : MonoBehaviour
 
     void SetState(State s)
     {
+        // Al salir de patrullaje invalidamos el wander target para que recalcule al volver.
+        if (CurrentState == State.Patrol && s != State.Patrol) hasWanderTarget = false;
         CurrentState = s;
         switch (s)
         {
-            case State.Patrol: Agent.speed = patrolSpeed; Agent.isStopped = false; break;
+            case State.Patrol: Agent.speed = patrolSpeed; Agent.isStopped = false; hasWanderTarget = false; break;
             case State.Investigate: Agent.speed = investigateSpeed; Agent.isStopped = false; break;
             case State.Alert: Agent.isStopped = true; enemyAnim?.TriggerAlert(); break;
             case State.Chase:
@@ -133,6 +184,12 @@ public class EnemyAIBase : MonoBehaviour
                     AudioManager.Instance?.PlayMusic(MusicId.Chase);
                     break;
                 }
+            case State.Attacking:
+                Agent.isStopped = true;                 // se planta para golpear
+                enemyAnim?.TriggerAttack();             // dispara el UnityEvent (Animator.Play "Attack", SFX, etc.)
+                // OJO: el daño se aplica desde el AnimationEvent "AttackFrame" de la animación de ataque.
+                // EnemyAnimator.AttackFrame() → EnemyAIBase.OnAttackFrame() → attackCollider.OpenWindow()
+                break;
             case State.Idle: Agent.isStopped = true; break;
         }
     }
@@ -165,12 +222,17 @@ public class EnemyAIBase : MonoBehaviour
 
     void TickIdle()
     {
-        if (patrolPoints.Count > 0) SetState(State.Patrol);
+        SetState(State.Patrol);
     }
 
     void TickPatrol()
     {
-        if (patrolPoints.Count == 0) return;
+        if (patrolPoints.Count > 0) TickPatrolFixedPoints();
+        else TickPatrolWander();
+    }
+
+    void TickPatrolFixedPoints()
+    {
         if (Agent.pathPending) return;
         if (Agent.remainingDistance <= arriveDistance)
         {
@@ -187,6 +249,83 @@ public class EnemyAIBase : MonoBehaviour
             Agent.SetDestination(patrolPoints[patrolIdx].position);
         }
     }
+
+    void TickPatrolWander()
+    {
+        // Pedir un destino nuevo si no tenemos uno o si ya hemos llegado.
+        bool needNewTarget =
+            !hasWanderTarget ||
+            (!Agent.pathPending && Agent.remainingDistance <= arriveDistance);
+
+        if (needNewTarget)
+        {
+            patrolWaitTimer += Time.deltaTime;
+            if (patrolWaitTimer < patrolWaitTime && hasWanderTarget) return;
+            patrolWaitTimer = 0f;
+            if (TryPickIntelligentWanderTarget(out var target))
+            {
+                currentWanderTarget = target;
+                hasWanderTarget = true;
+                Agent.SetDestination(currentWanderTarget);
+            }
+        }
+        else if (!Agent.hasPath)
+        {
+            Agent.SetDestination(currentWanderTarget);
+        }
+    }
+
+    /// <summary>
+    /// Muestrea varios puntos aleatorios del NavMesh y elige uno ponderado por:
+    ///   - distancia mínima respecto a la posición actual (evita rebotar en el sitio),
+    ///   - sesgo hacia el jugador según escalación de dificultad (a más dificultad → más cerca del player).
+    /// La IA inteligente puede ajustar el sesgo vía <see cref="WanderBiasToPlayer"/>.
+    /// </summary>
+    bool TryPickIntelligentWanderTarget(out Vector3 result)
+    {
+        result = transform.position;
+        float bestScore = float.NegativeInfinity;
+        bool found = false;
+
+        float biasToPlayer = Mathf.Clamp01(EffectiveWanderBias);
+
+        for (int i = 0; i < Mathf.Max(1, wanderSampleCount); i++)
+        {
+            Vector2 rnd = Random.insideUnitCircle * wanderRadius;
+            Vector3 candidate = transform.position + new Vector3(rnd.x, 0f, rnd.y);
+
+            if (!NavMesh.SamplePosition(candidate, out var hit, wanderRadius * 0.5f, NavMesh.AllAreas))
+                continue;
+
+            float distFromSelf = Vector3.Distance(hit.position, transform.position);
+            if (distFromSelf < wanderMinStep) continue;
+
+            float score = distFromSelf;
+
+            if (player && biasToPlayer > 0f)
+            {
+                float distToPlayer = Vector3.Distance(hit.position, player.position);
+                // A más biasToPlayer, más penalizamos quedarnos lejos del jugador.
+                score -= biasToPlayer * distToPlayer * 1.5f;
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                result = hit.position;
+                found = true;
+            }
+        }
+        return found;
+    }
+
+    /// <summary>
+    /// Sesgo 0..1 hacia el jugador a la hora de elegir destinos de wander.
+    /// Por defecto se calcula desde la escalación de dificultad. EnemyAIInteligent puede sobreescribirlo.
+    /// </summary>
+    public float WanderBiasToPlayer { get; set; } = -1f; // -1 → derive from difficulty
+    float EffectiveWanderBias =>
+        WanderBiasToPlayer >= 0f ? WanderBiasToPlayer : Mathf.Clamp01(DifficultyEscalation);
 
     void TickInvestigate()
     {
@@ -210,14 +349,25 @@ public class EnemyAIBase : MonoBehaviour
     void TickChase()
     {
         if (!player) return;
-        // Use known pos (refreshed every frame if visible).
-        Vector3 dest = KnownPlayerPos ?? player.position;
-        Agent.SetDestination(dest);
-        // Detect attack range — animation event 'AttackFrame' will fire actual hit.
-        if (Vector3.Distance(transform.position, player.position) <= attackRange)
+
+        Vector3 targetPoint = KnownPlayerPos ?? player.position;
+        // Mantén una distancia de seguridad: no apuntes al pie del jugador, apunta a un punto
+        // por delante a 'safetyDistance' de él, así nunca lo clipea.
+        Vector3 toPlayer = targetPoint - transform.position;
+        float distNow = toPlayer.magnitude;
+        if (distNow > 0.001f)
         {
-            // Don't stop — the charge keeps moving. Just open the attack window via anim event.
-            // We let TickAttack handle this transient state.
+            Vector3 dir = toPlayer / distNow;
+            float desiredDist = Mathf.Max(0f, distNow - safetyDistance);
+            Vector3 stopAt = transform.position + dir * desiredDist;
+            Agent.SetDestination(stopAt);
+        }
+        // Que el agent.stoppingDistance no sea menor que la safetyDistance.
+        if (Agent.stoppingDistance < safetyDistance) Agent.stoppingDistance = safetyDistance;
+
+        bool canAttack = attackCooldownTimer <= 0f && postAttackWalkTimer <= 0f;
+        if (canAttack && Vector3.Distance(transform.position, player.position) <= attackRange)
+        {
             SetState(State.Attacking);
         }
     }
@@ -226,8 +376,17 @@ public class EnemyAIBase : MonoBehaviour
     void TickAttack()
     {
         attackTimer += Time.deltaTime;
-        if (player) Agent.SetDestination(player.position); // keep charging through.
-        if (attackTimer >= 0.8f)
+        // Mientras ataca se queda parado; encara al jugador.
+        if (player)
+        {
+            Vector3 to = player.position - transform.position; to.y = 0f;
+            if (to.sqrMagnitude > 0.01f)
+            {
+                Quaternion target = Quaternion.LookRotation(to.normalized, Vector3.up);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, target, 360f * Time.deltaTime);
+            }
+        }
+        if (attackTimer >= attackDuration)
         {
             attackTimer = 0f;
             SetState(State.Chase);
@@ -244,15 +403,48 @@ public class EnemyAIBase : MonoBehaviour
             attackCollider?.OpenWindow();
         }
     }
+
+    /// <summary>Llámalo desde EnemyAttack cuando un golpe IMPACTA al jugador.
+    /// Fuerza al enemigo a caminar (sin atacar) X segundos según dificultad y arranca cooldown.</summary>
+    public void NotifyAttackLanded()
+    {
+        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetSettings() : null;
+        attackCooldownTimer = diff != null ? diff.attackCooldown : 2.5f;
+        postAttackWalkTimer = diff != null ? diff.postAttackWalkSeconds : 4f;
+        // Salimos inmediatamente del ataque al patrullaje (walk) — no persigue ni corre.
+        if (CurrentState == State.Attacking || CurrentState == State.Chase)
+            SetState(State.Patrol);
+    }
     #endregion
+
+    float GetChaseMemoryDuration()
+    {
+        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetSettings() : null;
+        return diff != null ? diff.chaseMemorySeconds : 3f;
+    }
+
+    /// <summary>Memoria de chase escalada por distancia: más cerca → recuerda más.</summary>
+    float ComputeMemoryDuration(float currentDistance)
+    {
+        float baseMem = GetChaseMemoryDuration();
+        float t = Mathf.InverseLerp(closeMemoryDistance, Mathf.Max(closeMemoryDistance + 0.01f, farMemoryDistance), currentDistance);
+        float mul = Mathf.Lerp(closeMemoryMultiplier, farMemoryMultiplier, Mathf.Clamp01(t));
+        return baseMem * mul;
+    }
 
     void UpdateAnimatorBools()
     {
         if (!enemyAnim) return;
-        bool patrolling = CurrentState == State.Patrol || CurrentState == State.Investigate;
-        bool chasing = CurrentState == State.Chase || CurrentState == State.Attacking;
-        enemyAnim.SetPatrolling(patrolling);
-        enemyAnim.SetChasing(chasing);
+        // Solo reproducimos las animaciones de locomoción si el agente se mueve de verdad.
+        bool actuallyMoving = !Agent.isStopped
+                              && Agent.velocity.sqrMagnitude > 0.05f
+                              && Agent.remainingDistance > Agent.stoppingDistance + 0.05f;
+
+        bool inPatrolState = CurrentState == State.Patrol || CurrentState == State.Investigate;
+        bool inChaseState  = CurrentState == State.Chase  || CurrentState == State.Attacking;
+
+        enemyAnim.SetPatrolling(inPatrolState && actuallyMoving);
+        enemyAnim.SetChasing(inChaseState && actuallyMoving);
     }
 
     void HandleTurnAnimations()
@@ -267,28 +459,13 @@ public class EnemyAIBase : MonoBehaviour
         float signed = Vector3.SignedAngle(transform.forward, desired, Vector3.up);
         bool isMoving = Agent.velocity.sqrMagnitude > 0.5f;
 
-        if (enemyAnim.LocomotionLocked)
+        if (isMoving)
         {
-            Agent.isStopped = true;
-            return;
+            float maxStep = enemyAnim.GetGradualTurnSpeed() * Time.deltaTime;
+            float step = Mathf.Clamp(signed, -maxStep, maxStep);
+            transform.Rotate(0f, step, 0f, Space.World);
         }
-
-        bool playedTurn = enemyAnim.RequestTurn(signed, isMoving);
-        if (playedTurn)
-        {
-            Agent.isStopped = true;
-        }
-        else
-        {
-            // Gradual turn while moving (<90)
-            if (isMoving)
-            {
-                float maxStep = enemyAnim.GetGradualTurnSpeed() * Time.deltaTime;
-                float step = Mathf.Clamp(signed, -maxStep, maxStep);
-                transform.Rotate(0f, step, 0f, Space.World);
-            }
-            Agent.isStopped = (CurrentState == State.Alert || CurrentState == State.Idle);
-        }
+        Agent.isStopped = (CurrentState == State.Alert || CurrentState == State.Idle);
     }
 
     void OnNoise(Vector3 position, float intensity)
@@ -320,6 +497,12 @@ public class EnemyAIBase : MonoBehaviour
     public void ReceiveHint(Vector3 approxPosition, float radius)
     {
         if (CurrentState == State.Chase || CurrentState == State.Attacking) return;
+
+        // Probabilidad de ignorar (por dificultad).
+        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetSettings() : null;
+        float ignore = diff != null ? diff.hintIgnoreChance : 0.4f;
+        if (Random.value < ignore) return;
+
         Vector2 r = Random.insideUnitCircle * radius;
         Vector3 target = approxPosition + new Vector3(r.x, 0f, r.y);
         if (NavMesh.SamplePosition(target, out var hit, radius * 1.5f, NavMesh.AllAreas))

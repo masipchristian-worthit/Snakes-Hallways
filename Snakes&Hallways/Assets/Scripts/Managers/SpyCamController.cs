@@ -4,8 +4,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Singleton que gestiona la "cámara espía" del enemigo.
-/// - Tecla C: si el enemigo NO te ve y NO estás demasiado cerca, fade a negro y cambia
-///   la cámara activa del player a la cámara del enemigo (EnemyCameraView).
+/// - Tecla C: si el enemigo NO te ve y NO estás demasiado cerca, fade (disolución de SceneTransition)
+///   y cambia la cámara activa del player a la cámara del enemigo (EnemyCameraView).
 /// - Otra vez C: vuelve a la cámara del player con otro fade.
 /// - Si durante el modo espía el enemigo ve al player o se le acerca demasiado,
 ///   se sale automáticamente como si se pulsara C.
@@ -25,14 +25,17 @@ public class SpyCamController : MonoBehaviour
     [Tooltip("Detección del enemigo, usada para abortar si te ve. Si está vacía se busca en EnemyCameraView.transform.")]
     [SerializeField] EnemyDetection enemyDetection;
 
-    [Header("Fade UI")]
-    [Tooltip("Image de pantalla completa (negra) en un Canvas Screen Space - Overlay con sorting alto.")]
-    [SerializeField] Image fadeImage;
-    [SerializeField] Color fadeColor = Color.black;
+    [Header("Fade")]
+    [Tooltip("Si está activo, se usa SceneTransition.Instance (mismo dissolve que los cambios de escena).")]
+    [SerializeField] bool useSceneTransitionFade = true;
     [SerializeField] float fadeInTime = 0.35f;
     [SerializeField] float fadeOutTime = 0.45f;
     [Tooltip("Tiempo (segundos) que la pantalla se mantiene en negro antes del fade out.")]
     [SerializeField] float holdBlackTime = 0.08f;
+
+    [Header("Fade UI (fallback si no hay SceneTransition)")]
+    [SerializeField] Image fadeImage;
+    [SerializeField] Color fadeColor = Color.black;
 
     [Header("Reglas de uso")]
     [Tooltip("Si la distancia player↔enemigo es menor que esto, NO se puede entrar al modo espía.")]
@@ -47,6 +50,7 @@ public class SpyCamController : MonoBehaviour
     public bool IsTransitioning { get; private set; }
 
     Transform player;
+    AudioListener playerListener;
 
     void Awake()
     {
@@ -62,10 +66,37 @@ public class SpyCamController : MonoBehaviour
         var p = GameObject.FindGameObjectWithTag("Player");
         if (p) player = p.transform;
 
-        // Estado inicial: cámara del player ON, cámara enemigo OFF, fade limpio
-        if (playerCamera) playerCamera.enabled = true;
+        if (playerCamera)
+        {
+            playerListener = playerCamera.GetComponent<AudioListener>();
+            playerCamera.enabled = true;
+            if (playerListener) playerListener.enabled = true;
+        }
         if (enemyView) enemyView.SetActive(false);
+
+        EnsureFallbackOverlay(); // garantiza un overlay propio si no hay SceneTransition
         SetFadeAlpha(0f);
+    }
+
+    void EnsureFallbackOverlay()
+    {
+        if (fadeImage != null) return;
+
+        // Canvas Overlay propio en lo alto de la jerarquía con sortingOrder máximo.
+        var go = new GameObject("SpyCamFadeOverlay");
+        go.transform.SetParent(transform, false);
+        var canvas = go.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 32760;
+        go.AddComponent<UnityEngine.UI.CanvasScaler>().uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        var imgGo = new GameObject("FadeImage");
+        imgGo.transform.SetParent(go.transform, false);
+        fadeImage = imgGo.AddComponent<UnityEngine.UI.Image>();
+        var rt = fadeImage.rectTransform;
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+        fadeImage.raycastTarget = false;
+        fadeImage.color = new Color(fadeColor.r, fadeColor.g, fadeColor.b, 0f);
     }
 
     void Update()
@@ -115,28 +146,51 @@ public class SpyCamController : MonoBehaviour
         return true;
     }
 
+    void SwitchToEnemyCam()
+    {
+        if (playerCamera) playerCamera.enabled = false;
+        if (playerListener) playerListener.enabled = false;
+        if (enemyView) enemyView.SetActive(true);
+    }
+
+    void SwitchToPlayerCam()
+    {
+        if (enemyView) enemyView.SetActive(false);
+        if (playerCamera) playerCamera.enabled = true;
+        if (playerListener) playerListener.enabled = true;
+    }
+
     IEnumerator EnterRoutine()
     {
         IsTransitioning = true;
-        yield return FadeTo(1f, fadeInTime);
-        if (playerCamera) playerCamera.enabled = false;
-        if (enemyView) enemyView.SetActive(true);
-        yield return new WaitForSecondsRealtime(holdBlackTime);
+        yield return RunFade(SwitchToEnemyCam);
         IsActive = true;
-        yield return FadeTo(0f, fadeOutTime);
         IsTransitioning = false;
     }
 
     IEnumerator ExitRoutine()
     {
         IsTransitioning = true;
-        yield return FadeTo(1f, fadeInTime);
-        if (enemyView) enemyView.SetActive(false);
-        if (playerCamera) playerCamera.enabled = true;
-        yield return new WaitForSecondsRealtime(holdBlackTime);
+        yield return RunFade(SwitchToPlayerCam);
         IsActive = false;
-        yield return FadeTo(0f, fadeOutTime);
         IsTransitioning = false;
+    }
+
+    IEnumerator RunFade(System.Action mid)
+    {
+        // SceneTransition se auto-bootstrappea — siempre habrá una instancia disponible.
+        var st = SceneTransition.EnsureInstance();
+        if (useSceneTransitionFade && st != null)
+        {
+            yield return st.FadeAction(mid, fadeInTime, holdBlackTime, fadeOutTime);
+            yield break;
+        }
+        // Fallback con overlay propio (por si alguien desactiva useSceneTransitionFade).
+        EnsureFallbackOverlay();
+        yield return FadeTo(1f, fadeInTime);
+        mid?.Invoke();
+        yield return new WaitForSecondsRealtime(holdBlackTime);
+        yield return FadeTo(0f, fadeOutTime);
     }
 
     IEnumerator FadeTo(float targetAlpha, float duration)
@@ -168,7 +222,6 @@ public class SpyCamController : MonoBehaviour
 
     void PlayUI(string id)
     {
-        // Hook simple por si tienes un SFXId.UICancel o similar.
         AudioManager.Instance?.PlaySFX2D(SFXId.UICancel);
     }
 }

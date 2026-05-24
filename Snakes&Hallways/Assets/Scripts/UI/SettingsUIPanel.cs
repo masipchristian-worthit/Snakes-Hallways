@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// Panel de UI que controla todos los settings del SettingsManager.
@@ -19,7 +20,15 @@ public class SettingsUIPanel : MonoBehaviour
     [Header("Graphics")]
     [SerializeField] Toggle fullscreenToggle;
     [SerializeField] Toggle vsyncToggle;
-    [SerializeField] Dropdown resolutionDropdown;
+    [SerializeField] TMP_Dropdown resolutionDropdown;
+
+    static readonly Vector2Int[] kResolutionOptions = new[]
+    {
+        new Vector2Int(1280, 720),   // 720p
+        new Vector2Int(1600, 900),   // 900p
+        new Vector2Int(1920, 1080),  // 1080p (Full HD)
+        new Vector2Int(2560, 1440),  // 1440p (2K)
+    };
 
     [Header("Buttons")]
     [SerializeField] Button resetButton;
@@ -97,24 +106,27 @@ public class SettingsUIPanel : MonoBehaviour
 
     void SetupResolutionDropdown()
     {
-        Resolution[] resolutions = Screen.resolutions;
         resolutionDropdown.ClearOptions();
 
         int currentIndex = 0;
-        for (int i = 0; i < resolutions.Length; i++)
+        for (int i = 0; i < kResolutionOptions.Length; i++)
         {
-            string option = $"{resolutions[i].width}x{resolutions[i].height}@{resolutions[i].refreshRateRatio.numerator}Hz";
-            resolutionDropdown.options.Add(new Dropdown.OptionData(option));
+            var r = kResolutionOptions[i];
+            string label = $"{r.x} x {r.y}";
+            if (r.x == 1920) label += "  (Full HD)";
+            else if (r.x == 2560) label += "  (2K)";
+            resolutionDropdown.options.Add(new TMP_Dropdown.OptionData(label));
 
-            if (resolutions[i].width == Screen.width && resolutions[i].height == Screen.height)
+            if (r.x == Screen.width && r.y == Screen.height)
                 currentIndex = i;
         }
 
-        resolutionDropdown.value = currentIndex;
+        resolutionDropdown.RefreshShownValue();
+        resolutionDropdown.SetValueWithoutNotify(currentIndex);
         resolutionDropdown.onValueChanged.AddListener(index =>
         {
-            Resolution res = resolutions[index];
-            SettingsManager.Instance.SetResolution(res.width, res.height);
+            var r = kResolutionOptions[index];
+            SettingsManager.Instance.SetResolution(r.x, r.y);
         });
     }
 

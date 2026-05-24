@@ -42,5 +42,10 @@ public class EnemyAttack : MonoBehaviour
             hp.TakeDamage(damage);
         else if (fallbackToInstantKill)
             GameManager.Instance?.TriggerGameOver();
+
+        // Notificamos al cerebro del enemigo: entra en cooldown + walk forzado.
+        var ai = GetComponentInParent<EnemyAIBase>();
+        ai?.NotifyAttackLanded();
+        col.enabled = false; // cierra la ventana inmediatamente — un golpe por ventana.
     }
 }
