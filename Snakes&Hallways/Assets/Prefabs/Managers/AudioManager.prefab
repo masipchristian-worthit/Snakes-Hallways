@@ -182,17 +182,17 @@ MonoBehaviour:
   musicLibrary:
   - id: 1
     clip: {fileID: 8300000, guid: 86ea5a1a545ae4343b0f21f64489c795, type: 3}
-    volume: 0.7
+    volume: 0.4
   - id: 2
     clip: {fileID: 8300000, guid: 21bdc9fc95e7d1d478e5a121545c6cb2, type: 3}
-    volume: 0.7
+    volume: 0.4
   - id: 3
     clip: {fileID: 8300000, guid: e1df3dfcd623de241ae79395c87b57d2, type: 3}
-    volume: 0.7
+    volume: 0.4
   - id: 5
     clip: {fileID: 8300000, guid: 4fc3e18d9185847499bece75f9a7138f, type: 3}
-    volume: 0.7
+    volume: 0.4
   - id: 6
     clip: {fileID: 8300000, guid: b391a823f2c4d3545ba1e806bfd575c3, type: 3}
-    volume: 0.7
+    volume: 0.4
   sfxPoolSize: 16

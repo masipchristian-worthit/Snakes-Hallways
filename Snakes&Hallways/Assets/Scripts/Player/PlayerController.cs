@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody))]
-[RequireComponent(typeof(Animator))]
 public class PlayerController : MonoBehaviour
 {
     #region Inspector — Look & Camera
@@ -128,11 +127,19 @@ public class PlayerController : MonoBehaviour
     #endregion
 
     #region Inspector — Animator
+    [Header("Animator (Main / Armature)")]
+    [Tooltip("Animator principal del Gauntlet (Armature). Si se deja vacío se intenta GetComponent<Animator>() en este GameObject.")]
+    [SerializeField] Animator anim;
+
     [Header("Animator None-State Mesh")]
     [Tooltip("Mesh that's hidden while AC_Player is in 'None' state (hands/weapon).")]
     [SerializeField] Renderer[] noneStateMeshes;
     [SerializeField] string noneStateName = "None";
     [SerializeField] int animatorLayer = 0;
+
+    [Header("Secondary Animator (Sphere / Eye)")]
+    [Tooltip("Animator del ojo (Sphere). Debe tener los MISMOS parámetros (Draw, ReverseDraw) que el principal. Los triggers se disparan en ambos a la vez desde AnimationHandle().")]
+    [SerializeField] Animator sphereAnim;
     #endregion
 
     #region Inspector — Lamp
@@ -171,7 +178,6 @@ public class PlayerController : MonoBehaviour
 
     // ── State ────────────────────────────────────────────────────────────────
     Rigidbody rb;
-    Animator anim;
     Vector2 moveInput;
     Vector2 lookInput;
     float lookRotation;
@@ -209,17 +215,15 @@ public class PlayerController : MonoBehaviour
     Vector3 armCurrentPosOffset;
     Vector3 armCurrentEulerOffset;
 
-    // Animator triggers
-    static readonly int HashWalking     = Animator.StringToHash("Walking");
-    static readonly int HashRunning     = Animator.StringToHash("Running");
-    static readonly int HashCrouching   = Animator.StringToHash("Crouching");
+    // Animator triggers (los controllers solo tienen Draw / ReverseDraw)
     static readonly int HashDraw        = Animator.StringToHash("Draw");
     static readonly int HashReverseDraw = Animator.StringToHash("ReverseDraw");
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
-        anim = GetComponent<Animator>();
+        if (anim == null) anim = GetComponent<Animator>();
+        if (anim == null) Debug.LogWarning("PlayerController: Animator principal no asignado y no se encontró en el GameObject. Asigna el Animator del GuanteBaked.", this);
         if (cameraTransform == null && camHolder != null)
         {
             var cam = camHolder.GetComponentInChildren<Camera>();
@@ -296,7 +300,6 @@ public class PlayerController : MonoBehaviour
         if (jumpBufferTimer > 0f && coyoteTimer > 0f) TryConsumeJump();
 
         StaminaTick();
-        AnimationHandle();
         HeadBob();
         ArmSway();
         FootstepTick();
@@ -540,31 +543,46 @@ public class PlayerController : MonoBehaviour
     #endregion
 
     #region Animation
-    void AnimationHandle()
+    /// <summary>
+    /// Dispara el trigger indicado SIMULTÁNEAMENTE en el Animator de la mano y en el del ojo.
+    /// Ambos AnimatorController comparten los parámetros (Draw, ReverseDraw) y la lógica de
+    /// transiciones desde Any State, así que con un único disparo por frame se mantienen
+    /// alineados sin necesidad de re-sync.
+    /// </summary>
+    void AnimationHandle(int triggerHash)
     {
-        anim.SetBool(HashWalking, IsMoving && !IsSprinting && !IsCrouching);
-        anim.SetBool(HashRunning, IsMoving && IsSprinting && !IsCrouching);
-        anim.SetBool(HashCrouching, IsCrouching);
-    }
+        // Mano (Armature)
+        if (anim != null && anim.runtimeAnimatorController != null)
+        {
+            anim.ResetTrigger(HashDraw);
+            anim.ResetTrigger(HashReverseDraw);
+            anim.SetTrigger(triggerHash);
+        }
 
-    IEnumerator FireTrigger(int triggerHash)
-    {
-        anim.ResetTrigger(triggerHash);
-        anim.SetTrigger(triggerHash);
-        yield return null;
+        // Ojo (Sphere) — mismo trigger, mismo frame.
+        if (sphereAnim != null && sphereAnim.runtimeAnimatorController != null)
+        {
+            sphereAnim.ResetTrigger(HashDraw);
+            sphereAnim.ResetTrigger(HashReverseDraw);
+            sphereAnim.SetTrigger(triggerHash);
+        }
     }
 
     public void DrawWeapon()
     {
-        StartCoroutine(FireTrigger(HashDraw));
+        AnimationHandle(HashDraw);
         HandDrawn = true;
         // HandDraw SFX descartado.
     }
     public void StoreWeapon()
     {
-        StartCoroutine(FireTrigger(HashReverseDraw));
+        AnimationHandle(HashReverseDraw);
         HandDrawn = false;
         // HandStore SFX descartado.
+
+        // Si guardamos la mano mientras estamos en la cámara enemiga, volvemos a la del player.
+        if (SpyCamController.Instance != null && SpyCamController.Instance.IsActive)
+            SpyCamController.Instance.Toggle();
     }
     public void ToggleHand()
     {
@@ -575,6 +593,7 @@ public class PlayerController : MonoBehaviour
     void UpdateNoneStateMesh()
     {
         if (noneStateMeshes == null || noneStateMeshes.Length == 0) return;
+        if (anim == null || anim.runtimeAnimatorController == null) return;
         var info = anim.GetCurrentAnimatorStateInfo(animatorLayer);
         bool isNone = info.IsName(noneStateName);
         for (int i = 0; i < noneStateMeshes.Length; i++)
@@ -640,7 +659,24 @@ public class PlayerController : MonoBehaviour
     public void OnReload(InputAction.CallbackContext ctx) { /* hook reload */ }
     public void OnShoot(InputAction.CallbackContext ctx) { /* hook shoot */ }
     public void OnToggleHand(InputAction.CallbackContext ctx) { if (ctx.performed) ToggleHand(); }
-    public void OnSwitchCamera(InputAction.CallbackContext ctx) { if (ctx.performed) SpyCamController.Instance?.Toggle(); }
+
+    /// <summary>
+    /// Solo permite alternar a la cámara enemiga si el jugador tiene la mano sacada.
+    /// Si ya está en cámara enemiga, siempre se puede volver (Toggle apaga).
+    /// </summary>
+    public void OnSwitchCamera(InputAction.CallbackContext ctx)
+    {
+        if (!ctx.performed) return;
+        var spy = SpyCamController.Instance;
+        if (spy == null) return;
+
+        // Si ya estamos en la cámara enemiga, dejar volver siempre.
+        if (spy.IsActive) { spy.Toggle(); return; }
+
+        // Para ACTIVAR, exigir mano sacada.
+        if (!HandDrawn) return;
+        spy.Toggle();
+    }
     #endregion
 
     bool InputBlocked => SpyCamController.Instance != null && (SpyCamController.Instance.IsActive || SpyCamController.Instance.IsTransitioning);

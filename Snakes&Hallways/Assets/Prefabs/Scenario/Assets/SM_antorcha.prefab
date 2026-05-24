@@ -785,6 +785,7 @@ GameObject:
   - component: {fileID: 5096668256554254167}
   - component: {fileID: 7016598939159497629}
   - component: {fileID: 1704417270445851262}
+  - component: {fileID: 3014465678997215490}
   m_Layer: 0
   m_Name: SM_antorcha
   m_TagString: Untagged
@@ -968,3 +969,24 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!65 &3014465678997215490
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8817779787227703880}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.13153519, y: 0.67441905, z: 0.27984133}
+  m_Center: {x: 1.148117e-16, y: -0.09114804, z: 0.0010471048}

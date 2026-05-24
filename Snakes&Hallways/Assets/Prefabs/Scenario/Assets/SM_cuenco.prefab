@@ -318,6 +318,7 @@ GameObject:
   - component: {fileID: 6076712501780618188}
   - component: {fileID: 8336205357372141318}
   - component: {fileID: 4908249567283937284}
+  - component: {fileID: 3657582058924897288}
   m_Layer: 0
   m_Name: SM_cuenco
   m_TagString: Untagged
@@ -497,6 +498,27 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!65 &3657582058924897288
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7543770077799141075}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.320967, y: 1.1849016, z: 1.321812}
+  m_Center: {x: 0.01506451, y: 0.049479295, z: 0.0006627603}
 --- !u!1 &8762663576238184800
 GameObject:
   m_ObjectHideFlags: 0
