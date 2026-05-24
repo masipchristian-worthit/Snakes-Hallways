@@ -1,5 +1,18 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-7558909826184825847
+MonoBehaviour:
+  m_ObjectHideFlags: 11
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Editor::UnityEditor.Rendering.Universal.AssetVersion
+  version: 10
 --- !u!21 &2100000
 Material:
   serializedVersion: 8
@@ -16,7 +29,6 @@ Material:
   - _DETAIL_NOISE_ON
   - _FRESNEL_ON
   - _GRIME_ON
-  - _METALLICSPECGLOSSMAP
   - _NORMALMAP
   - _OCCLUSIONMAP
   - _PARALLAXMAP
@@ -33,11 +45,11 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: 0107bcaa58407e64fbd1fbce916a9239, type: 3}
+        m_Texture: {fileID: 2800000, guid: 4c605991c8692d64e94833d5bd03b676, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
-        m_Texture: {fileID: 2800000, guid: 529398b85a287a44bb9a814d72b8c857, type: 3}
+        m_Texture: {fileID: 2800000, guid: 6c1d431d29cc5c54587c69f3d2be4ef9, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _CurvatureMap:
@@ -57,7 +69,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _EmissionMap:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 4c605991c8692d64e94833d5bd03b676, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _GrimeMap:
@@ -65,7 +77,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 0107bcaa58407e64fbd1fbce916a9239, type: 3}
+        m_Texture: {fileID: 2800000, guid: bd58d1a57b7254440a22c8d9bb44fcee, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MaskMap:
@@ -73,7 +85,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
-        m_Texture: {fileID: 2800000, guid: 22a758088e57daa4cb87b94a2e414396, type: 3}
+        m_Texture: {fileID: 2800000, guid: 11a6b287ec38e784488371183e42d67d, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NoiseTexture:
@@ -81,15 +93,15 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalMap:
-        m_Texture: {fileID: 2800000, guid: 529398b85a287a44bb9a814d72b8c857, type: 3}
+        m_Texture: {fileID: 2800000, guid: 10ff9e28f674ad54c830b60d39c2e832, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
-        m_Texture: {fileID: 2800000, guid: a9cc1422e8fc91b49903cba6594588e1, type: 3}
+        m_Texture: {fileID: 2800000, guid: e7403778e20a54a43aefd729c6206c83, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _ParallaxMap:
-        m_Texture: {fileID: 2800000, guid: 89222d6486c6d5e46b8f656ebc41b488, type: 3}
+        m_Texture: {fileID: 2800000, guid: e30fafcbcc386ee498d11377de849334, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SpecGlossMap:
@@ -114,10 +126,22 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AOEndDistance: 14
+    - _AOExtremesStrength: 0.45
+    - _AOFalloffPower: 2.5
+    - _AOFarStrength: 1
+    - _AOLevel1Mul: 0.24000001
+    - _AOLevel2Mul: 0.908
+    - _AOLevel3Mul: 3.2
+    - _AONearStrength: 0
+    - _AOStartDistance: 4
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
+    - _AlwaysGranulation: 1
     - _AmbientDarkness: 0.3
+    - _AmbientLift: 0
+    - _AmbientLiftFadeDistance: 2
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BlendSoftness: 0.6
@@ -126,24 +150,37 @@ Material:
     - _ClearCoatSmoothness: 0
     - _Contrast: 1.12
     - _Cull: 2
-    - _CurvatureStrength: 0
+    - _CurvatureStrength: 0.2
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
     - _DetailNoise: 1
     - _DetailNormalMapScale: 1
-    - _DownwardBias: 0
+    - _DitherLevel1Mul: 1
+    - _DitherLevel2Mul: 1.87
+    - _DitherLevel3Mul: 3.72
+    - _DitherScale: 2
+    - _DitherStrength: 0.276
+    - _DownwardBias: 0.2
     - _DstBlend: 0
     - _DstBlendAlpha: 0
     - _EdgeAOPower: 3.5
-    - _EdgeAOStrength: 0
+    - _EdgeAOStrength: 0.45
     - _EdgeFadeRange: 3
     - _EdgeIntensity: 4
     - _EdgeVisibilityDistance: 8
     - _EdgeWidth: 1.5
     - _EnvironmentReflections: 1
+    - _Exposure: 1
+    - _FakeAOContrast: 1.8
+    - _FakeAODepthSensitivity: 1.5
+    - _FakeAONormalSensitivity: 3.5
+    - _FakeAOStrength: 0.816
     - _FloorGrimeBoost: 1.3
     - _FogDensityRadius: 4
+    - _FogFullDistance: 18
     - _FogHeightBias: 0.5
+    - _FogLightDispersal: 2
+    - _FogStartDistance: 2
     - _FogStrength: 0.6
     - _FresnelFalloff: 4
     - _FresnelOn: 1
@@ -155,23 +192,43 @@ Material:
     - _GrimeDirectionality: 0.7
     - _GrimeIntensity: 0.55
     - _GrimeScale: 1
+    - _HighlightDither: 0.276
+    - _HighlightSoftness: 0.15
+    - _HighlightThreshold: 0
+    - _Level1Distance: 3
+    - _Level2Distance: 8
+    - _Level3FogStart: 8
+    - _Level3FogStrength: 0.4
+    - _LevelBlend: 1.5
     - _MaskMapStrength: 0
+    - _MaxBrightness: 8
     - _Metallic: 0
     - _ModularSeamInfluence: 1
     - _NoiseBreakup: 0.5
     - _NoiseContrast: 0.65
     - _NoiseScale: 3.5
-    - _NormalStrength: 1
-    - _OcclusionStrength: 1
+    - _NormalDitherStrength: 0.5
+    - _NormalRimPower: 3
+    - _NormalRimStrength: 0.5
+    - _NormalStrength: 2
+    - _OcclusionStrength: 0.5
+    - _PaletteSaturation: 0.824
+    - _PaletteSteps: 42.68
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
     - _Saturation: 0.8
     - _SeamDarkenAmount: 0.45
     - _SeamDissolveAmount: 0.35
+    - _SeamEnabled: 1
+    - _SeamFadeDistance: 8
+    - _SeamIntensity: 3
     - _SeamThreshold: 0.15
+    - _SeamWidthPower: 0.35
+    - _ShadowAOBoost: 2.72
+    - _ShadowAOThreshold: 0.5
     - _ShadowIntensity: 0.5
-    - _Smoothness: 1
+    - _Smoothness: 0.509
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -182,34 +239,27 @@ Material:
     - _Surface: 0
     - _Triplanar: 0
     - _TriplanarScale: 0.5
+    - _ViewMaxDistance: 18
+    - _ViewMinDistance: 2
     - _VolFog: 1
     - _WallGrimeBoost: 1
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 0.7533662, g: 0.74718165, b: 0.9245283, a: 1}
-    - _Color: {r: 0.7533662, g: 0.74718165, b: 0.9245283, a: 1}
-    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _AmbientLiftTint: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _EmissionColor: {r: 0.047169805, g: 0.047169805, b: 0.047169805, a: 1}
+    - _FakeAOTint: {r: 0, g: 0, b: 0, a: 1}
     - _FogColor: {r: 0.23899996, g: 0.15599996, b: 0.09399996, a: 1}
     - _FresnelColor: {r: 0.35999998, g: 0.28999996, b: 0.21899995, a: 1}
     - _GrimeColor: {r: 0.12099997, g: 0.07399999, b: 0.031, a: 1}
+    - _Level3FogColor: {r: 0.02, g: 0.015, b: 0.01, a: 1}
+    - _NormalRimColor: {r: 0, g: 0, b: 0, a: 1}
     - _SeamDarkenColor: {r: 0.16399997, g: 0.10099997, b: 0.061999977, a: 1}
     - _ShadowTint: {r: 0.23099995, g: 0.14099997, b: 0.081999965, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _StylizedAOTint: {r: 0.059999965, g: 0.049999982, b: 0.04, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!114 &6169901913574302679
-MonoBehaviour:
-  m_ObjectHideFlags: 11
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Editor::UnityEditor.Rendering.Universal.AssetVersion
-  version: 10

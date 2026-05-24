@@ -68,7 +68,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _EmissionMap:
-        m_Texture: {fileID: 2800000, guid: 2b2bc010b9baeb046b3b1c200fb68e4d, type: 3}
+        m_Texture: {fileID: 2800000, guid: cf3e28b5fd243e54792677d9ace2aad5, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _GrimeMap:
@@ -242,7 +242,7 @@ Material:
     - _AmbientLiftTint: {r: 1, g: 1, b: 1, a: 1}
     - _BaseColor: {r: 0.58452976, g: 0.59053046, b: 0.72327036, a: 1}
     - _Color: {r: 0.5845297, g: 0.59053046, b: 0.72327036, a: 1}
-    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _EmissionColor: {r: 0.084905684, g: 0.084905684, b: 0.084905684, a: 1}
     - _FakeAOTint: {r: 0, g: 0, b: 0, a: 1}
     - _FogColor: {r: 0.23899996, g: 0.15599996, b: 0.09399996, a: 1}
     - _FresnelColor: {r: 0.35999998, g: 0.28999996, b: 0.21899995, a: 1}

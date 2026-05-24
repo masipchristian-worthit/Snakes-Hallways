@@ -44,7 +44,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: cf3e28b5fd243e54792677d9ace2aad5, type: 3}
+        m_Texture: {fileID: 2800000, guid: 60ce11efb9100e7488ed33c06eb4bc22, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
@@ -68,7 +68,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _EmissionMap:
-        m_Texture: {fileID: 2800000, guid: 2b2bc010b9baeb046b3b1c200fb68e4d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 60ce11efb9100e7488ed33c06eb4bc22, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _GrimeMap:
@@ -80,7 +80,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MaskMap:
-        m_Texture: {fileID: 2800000, guid: 6264d8bbcc0f6654f991874f58e0eb72, type: 3}
+        m_Texture: {fileID: 2800000, guid: c5c52939c445831498519766943573b6, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -92,7 +92,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalMap:
-        m_Texture: {fileID: 2800000, guid: c09217dc8d3df614ba85b5509d3ca4c8, type: 3}
+        m_Texture: {fileID: 2800000, guid: dc7c2ae8e60c3624ca104d1864178f25, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -127,6 +127,9 @@ Material:
     m_Floats:
     - _AOFalloffPower: 2.5
     - _AOFarStrength: 1
+    - _AOLevel1Mul: 0.6
+    - _AOLevel2Mul: 1.8
+    - _AOLevel3Mul: 4
     - _AONearStrength: 0
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
@@ -147,6 +150,9 @@ Material:
     - _DetailAlbedoMapScale: 1
     - _DetailNoise: 1
     - _DetailNormalMapScale: 1
+    - _DitherLevel1Mul: 1
+    - _DitherLevel2Mul: 1.7
+    - _DitherLevel3Mul: 2.6
     - _DitherScale: 1
     - _DitherStrength: 0.3
     - _DownwardBias: 0
@@ -181,6 +187,11 @@ Material:
     - _HighlightDither: 0.3
     - _HighlightSoftness: 0.15
     - _HighlightThreshold: 0.85
+    - _Level1Distance: 3
+    - _Level2Distance: 8
+    - _Level3FogStart: 0
+    - _Level3FogStrength: 0.85
+    - _LevelBlend: 1.5
     - _MaskMapStrength: 0
     - _MaxBrightness: 8
     - _Metallic: 0
@@ -188,6 +199,9 @@ Material:
     - _NoiseBreakup: 0.5
     - _NoiseContrast: 0.65
     - _NoiseScale: 3.5
+    - _NormalDitherStrength: 0.5
+    - _NormalRimPower: 3
+    - _NormalRimStrength: 0.5
     - _NormalStrength: 1
     - _OcclusionStrength: 1
     - _PaletteSaturation: 1
@@ -224,11 +238,13 @@ Material:
     - _AmbientLiftTint: {r: 1, g: 1, b: 1, a: 1}
     - _BaseColor: {r: 0.58452976, g: 0.59053046, b: 0.72327036, a: 1}
     - _Color: {r: 0.5845297, g: 0.59053046, b: 0.72327036, a: 1}
-    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _EmissionColor: {r: 0.11320752, g: 0.11320752, b: 0.11320752, a: 1}
     - _FakeAOTint: {r: 0, g: 0, b: 0, a: 1}
     - _FogColor: {r: 0.23899996, g: 0.15599996, b: 0.09399996, a: 1}
     - _FresnelColor: {r: 0.35999998, g: 0.28999996, b: 0.21899995, a: 1}
     - _GrimeColor: {r: 0.12099997, g: 0.07399999, b: 0.031, a: 1}
+    - _Level3FogColor: {r: 0.02, g: 0.02, b: 0.02, a: 1}
+    - _NormalRimColor: {r: 0, g: 0, b: 0, a: 1}
     - _SeamDarkenColor: {r: 0.16399997, g: 0.10099997, b: 0.061999977, a: 1}
     - _ShadowTint: {r: 0.23099995, g: 0.14099997, b: 0.081999965, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}

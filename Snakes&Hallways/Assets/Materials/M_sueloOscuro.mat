@@ -55,6 +55,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: a0a66c5448a48f14c83c4d4c538dcda3, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _EmissionMap:
+        m_Texture: {fileID: 2800000, guid: 4b1f7662e0e4f5e45b9aa201d092d17f, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
         m_Texture: {fileID: 2800000, guid: 4b1f7662e0e4f5e45b9aa201d092d17f, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -117,6 +121,7 @@ Material:
     - _AmbientLiftTint: {r: 1, g: 1, b: 1, a: 1}
     - _BaseColor: {r: 0.6710572, g: 0.6710572, b: 0.81761, a: 1}
     - _Color: {r: 0.6710572, g: 0.6710572, b: 0.81761, a: 1}
+    - _EmissionColor: {r: 0.16037738, g: 0.16037738, b: 0.16037738, a: 1}
     - _Level3FogColor: {r: 0.02, g: 0.015, b: 0.01, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
