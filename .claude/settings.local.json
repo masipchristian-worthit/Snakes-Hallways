@@ -29,7 +29,10 @@
       "Read(//c/ProgramData/chocolatey/**)",
       "Bash(winget install *)",
       "Bash(FFMPEG=\"C:/Users/coin/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe\" *)",
-      "Bash(C:/Users/coin/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe -y -framerate 30 -i 'C:/Users/coin/Desktop/wualuigi renders/Front/%04d.png' -c:v libx264 -pix_fmt yuv420p -crf 18 'C:/Users/coin/Desktop/wualuigi renders/Waluigi_Front.mp4')"
+      "Bash(C:/Users/coin/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-8.1.1-full_build/bin/ffmpeg.exe -y -framerate 30 -i 'C:/Users/coin/Desktop/wualuigi renders/Front/%04d.png' -c:v libx264 -pix_fmt yuv420p -crf 18 'C:/Users/coin/Desktop/wualuigi renders/Waluigi_Front.mp4')",
+      "Bash(find \"C:/Users/coin/Documents/GitHub/Snakes&Hallways_REPO\" -maxdepth 3 -name \".git\" -type d 2>/dev/null)",
+      "Bash(git ls-tree *)",
+      "Bash(git checkout *)"
     ]
   }
 }

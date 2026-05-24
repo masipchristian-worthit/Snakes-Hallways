@@ -9,13 +9,17 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     [Header("Timer")]
-    [Tooltip("Tiempo inicial de partida (segundos). Se copia a 'currentTime' en Start.")]
+    [Tooltip("Tiempo inicial de partida (segundos). Se copia a 'currentTime' al empezar la run.")]
     [SerializeField] float matchTime = 600f;
     [Tooltip("Tiempo actual restante (segundos). Editable en runtime desde el inspector.")]
     [SerializeField] float currentTime;
     [SerializeField] string gameOverScene = "SCN_DeathScene";
     [SerializeField] string winScene = "Win";
     [SerializeField] float deathFadeTime = 1.5f;
+
+    [Header("Run")]
+    [Tooltip("Nombre de la escena de gameplay. Al cargarla se arranca la run; al salir se resetea.")]
+    [SerializeField] string gameplaySceneName = "SCN_Labe";
 
     [Header("Refs")]
     [SerializeField] Transform player;
@@ -25,6 +29,7 @@ public class GameManager : MonoBehaviour
     public float TimeRemaining { get => currentTime; private set => currentTime = value; }
     public int PickupsCollected { get; private set; }
     public int PickupsRequired { get; private set; }
+    public bool RunActive { get; private set; }
 
     public event Action<int, int> OnPickupCountChanged;
     public event Action<float> OnTimerChanged;
@@ -34,26 +39,28 @@ public class GameManager : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
+
+    void OnEnable()  => SceneManager.sceneLoaded += HandleSceneLoaded;
+    void OnDisable() => SceneManager.sceneLoaded -= HandleSceneLoaded;
 
     void Start()
     {
-        if (currentTime <= 0f) currentTime = matchTime;
-        TimeRemaining = currentTime;
-        PickupsRequired = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings().pickupsRequired : 6;
-        OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
-        OnTimerChanged?.Invoke(TimeRemaining);
+        // Si arrancamos directamente en la escena de gameplay (sin pasar por intro), inicia la run.
+        if (SceneManager.GetActiveScene().name == gameplaySceneName) BeginRun();
+        else ResetRun();
+    }
 
-        // Engancha la muerte del jugador → game over.
-        var playerHealth = player != null
-            ? player.GetComponentInChildren<PlayerHealth>()
-            : FindFirstObjectByType<PlayerHealth>();
-        if (playerHealth != null) playerHealth.OnDied += TriggerGameOver;
+    void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == gameplaySceneName) BeginRun();
+        else ResetRun();
     }
 
     void Update()
     {
-        if (State != GameState.Playing) return;
+        if (!RunActive || State != GameState.Playing) return;
         TimeRemaining -= Time.deltaTime;
         OnTimerChanged?.Invoke(TimeRemaining);
         if (TimeRemaining <= 0f)
@@ -63,9 +70,53 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // ── Run lifecycle ─────────────────────────────────────────────────────
+    public void BeginRun()
+    {
+        RunActive = true;
+        State = GameState.Playing;
+        Time.timeScale = 1f;
+
+        TimeRemaining = matchTime;
+        PickupsCollected = 0;
+        PickupsRequired = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings().pickupsRequired : 6;
+
+        // Re-busca el player en la nueva escena.
+        if (player == null)
+        {
+            var go = GameObject.FindGameObjectWithTag("Player");
+            if (go != null) player = go.transform;
+        }
+        var playerHealth = player != null
+            ? player.GetComponentInChildren<PlayerHealth>()
+            : FindFirstObjectByType<PlayerHealth>();
+        if (playerHealth != null)
+        {
+            playerHealth.OnDied -= TriggerGameOver;
+            playerHealth.OnDied += TriggerGameOver;
+        }
+
+        OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
+        OnTimerChanged?.Invoke(TimeRemaining);
+        OnStateChanged?.Invoke(State);
+    }
+
+    public void ResetRun()
+    {
+        RunActive = false;
+        State = GameState.Playing;
+        Time.timeScale = 1f;
+        TimeRemaining = matchTime;
+        PickupsCollected = 0;
+        player = null;
+        OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
+        OnTimerChanged?.Invoke(TimeRemaining);
+        OnStateChanged?.Invoke(State);
+    }
+
     public void RegisterPickup()
     {
-        if (State != GameState.Playing) return;
+        if (!RunActive || State != GameState.Playing) return;
         PickupsCollected++;
         OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
         AudioManager.Instance?.PlaySFX2D(SFXId.Pickup, Mathf.Lerp(0.8f, 1.2f, (float)PickupsCollected / Mathf.Max(1, PickupsRequired)));
@@ -87,7 +138,6 @@ public class GameManager : MonoBehaviour
         State = GameState.GameOver;
         AudioManager.Instance?.PlayMusic(MusicId.GameOver);
         OnStateChanged?.Invoke(State);
-        // Fade a negro y carga la escena de muerte.
         SceneTransition.EnsureInstance()?.FadeAndLoad(gameOverScene, deathFadeTime);
     }
 

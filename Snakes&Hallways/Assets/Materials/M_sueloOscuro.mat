@@ -79,17 +79,18 @@ Material:
     m_Floats:
     - _AOFarStrength: 1
     - _AONearStrength: 0
-    - _CurvatureStrength: 0.405
-    - _DitherStrength: 0.3
+    - _AmbientLift: 0
+    - _CurvatureStrength: 0
+    - _DitherStrength: 0
     - _FakeAODepthSensitivity: 1
     - _FakeAONormalSensitivity: 2.5
-    - _FakeAOStrength: 1
-    - _HighlightDither: 0.3
+    - _FakeAOStrength: 0
+    - _HighlightDither: 0
     - _HighlightSoftness: 0.15
     - _HighlightThreshold: 0.85
     - _MaxBrightness: 8
     - _PaletteSaturation: 1
-    - _PaletteSteps: 32
+    - _PaletteSteps: 64
     - _Parallax: 0.08
     - _ShadowAOBoost: 1.5
     - _ShadowAOThreshold: 0.35
