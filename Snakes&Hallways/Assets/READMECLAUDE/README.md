@@ -434,6 +434,45 @@ El viejo aún funciona pero da warning que ralentiza compilación.
 
 ## 16. Changelog
 
+### Gameplay v0.4 — 2026-05-24 (forced respawn del minotauro por dificultad)
+
+Para que la IA no se "pierda" eternamente en mapas grandes (especialmente cuando el jugador rusha lejos), se añade un sistema de **respawn forzado** del minotauro escalado por dificultad.
+
+**`DifficultyManager.DifficultySettings` — 4 campos nuevos:**
+
+| Campo | Tipo | Significado |
+|---|---|---|
+| `noSightRespawnSeconds`   | float | Segundos seguidos sin LoS con el jugador antes del respawn. `0` desactiva. |
+| `farFromPlayerDistance`   | float | Distancia (m) a partir de la cual el minotauro cuenta como "lejos". `0` desactiva. |
+| `farFromPlayerSeconds`    | float | Segundos seguidos por encima de la distancia anterior antes del respawn. `0` desactiva. |
+| `forcedRespawnDistance`   | float | Distancia ideal al jugador donde aparecer tras el respawn. `0` reusa `postRoomSpawnDistance`. |
+
+**Defaults por dificultad:**
+
+| Dificultad | noSight (s) | farDist (m) | farTime (s) | respawnDist (m) |
+|---|---|---|---|---|
+| Easy        |  0   |  0   |  0   |  0   |
+| Medium      | 90   | 60   | 30   | 35   |
+| Hard        | 45   | 35   | 18   | 20   |
+| Impossible  | 20   | 18   |  8   | 10   |
+
+> Easy queda explícitamente DESACTIVADO — el minotauro no aparece mágicamente cerca, perfecto para aprender el mapa.
+
+**`EnemyAIBase.cs`:**
+
+- Nueva región `#region Forced Respawn` con dos métodos:
+  - `TickForcedRespawn()` — mantiene timers `noSightTimer` y `farFromPlayerTimer`, los resetea durante chase/attacking/post-attack-walk y dispara el respawn cuando se cruzan los thresholds.
+  - `TryForcedRespawnNearPlayer(desiredDistance)` — samplea `forcedRespawnSamples` (12 por defecto) puntos en un anillo NavMesh alrededor del jugador, descarta los visibles para la `Camera.main` y se queda con el más cercano a la distancia ideal. Hace `Agent.Warp(...)` al elegido.
+- Tras el respawn, si el minotauro queda mirando al jugador (`dot(forward, toPlayer) > 0.3`) pasa directo a `Chase`. Si no, vuelve a `Patrol`.
+- Cooldown propio `forcedRespawnCooldown` (8 s) entre respawns para evitar teleports consecutivos.
+- Campos serializados extra en el componente para tuning fino (`forcedRespawnTolerance`, `forcedRespawnSamples`, `forcedRespawnChasesIfFacing`, `forcedRespawnCooldown`).
+
+**Comportamiento esperado in-game:**
+
+- Si el jugador esconde la mano detrás de una columna y el minotauro lo pierde durante `noSightRespawnSeconds`, reaparece a la distancia configurada (no encima del jugador, no visible en cámara).
+- Si el jugador hace pickup-rush y se aleja > `farFromPlayerDistance` durante `farFromPlayerSeconds`, mismo resultado.
+- En Attacking o `postAttackWalkTimer > 0` los timers se resetean — el respawn nunca pisa el frame de daño ni el "respiro" post-impacto.
+
 ### v2.6 — 2026-05-22 (recalibración: Scene Extremes AO + anti-burn)
 **El usuario reportó dos problemas:**
 1. La aproximación Edge AO fresnel "quemaba la vista" (tiñía silhouettes en sepia).
@@ -771,4 +810,4 @@ textura, documentación y README maestro.
 
 ---
 
-_Última actualización: 2026-05-22 v2.6 — Scene Extremes AO + anti-burn (Reinhard), sin filtro sepia._
+_Última actualización: 2026-05-24 Gameplay v0.4 — Forced respawn del minotauro por dificultad (no-sight + far-from-player)._

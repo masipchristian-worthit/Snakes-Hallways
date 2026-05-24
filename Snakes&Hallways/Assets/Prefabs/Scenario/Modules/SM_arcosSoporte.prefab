@@ -65,11 +65,44 @@ PrefabInstance:
       value: SM_arcosSoporte
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: e07bc01a300ac234cb11201f7c43e91f, type: 3}
+      propertyPath: m_Layer
+      value: 12
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: e07bc01a300ac234cb11201f7c43e91f, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e07bc01a300ac234cb11201f7c43e91f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8834842601132125714}
   m_SourcePrefab: {fileID: 100100000, guid: e07bc01a300ac234cb11201f7c43e91f, type: 3}
+--- !u!1 &6623961578337155640 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: e07bc01a300ac234cb11201f7c43e91f, type: 3}
+  m_PrefabInstance: {fileID: 6281501288925628265}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &8834842601132125714
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6623961578337155640}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.7691582, y: 0.5604869, z: 0.78102386}
+  m_Center: {x: 0, y: 0.28024346, z: 0}

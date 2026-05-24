@@ -48,7 +48,7 @@ public class EnemyAIInteligent : MonoBehaviour
     {
         if (!blindAI || !player) return;
 
-        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetSettings() : null;
+        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetRuntimeSettings() : null;
         float esc = GetEscalation();
 
         // Sesgo de wander: en cuanto sube la escalación, el minotauro vagabundea más cerca del jugador.
@@ -78,7 +78,7 @@ public class EnemyAIInteligent : MonoBehaviour
     {
         currentRoom = room;
         if (blindAI == null) return;
-        var diff = DifficultyManager.Instance.GetSettings();
+        var diff = DifficultyManager.Instance.GetRuntimeSettings();
 
         if (blindAI.IsChasing)
         {
@@ -98,7 +98,7 @@ public class EnemyAIInteligent : MonoBehaviour
     {
         if (currentRoom == room) currentRoom = null;
         if (blindAI == null) return;
-        var diff = DifficultyManager.Instance.GetSettings();
+        var diff = DifficultyManager.Instance.GetRuntimeSettings();
         StartCoroutine(PostRoomRespawn(diff.postRoomSpawnDistance));
     }
 

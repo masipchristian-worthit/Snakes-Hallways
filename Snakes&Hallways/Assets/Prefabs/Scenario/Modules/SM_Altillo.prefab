@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 3527739489829476339}
   - component: {fileID: 529973354667989078}
   - component: {fileID: 2359359249357253788}
+  - component: {fileID: 7860630056417238309}
+  - component: {fileID: 5672932607169042505}
   m_Layer: 0
   m_Name: SM_Altillo
   m_TagString: Untagged
@@ -90,3 +92,45 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &7860630056417238309
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4305121065058110793}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 4.0516624, y: 0.17636289, z: 4.042051}
+  m_Center: {x: 0.0000038948015, y: 0.09899985, z: -0.004813787}
+--- !u!65 &5672932607169042505
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4305121065058110793}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 3.0443766, y: 0.35202453, z: 3.004384}
+  m_Center: {x: 0.04448784, y: 0.18683949, z: 0.028462479}

@@ -88,10 +88,10 @@ public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
-    [Header("Bootstrap")]
-    [Tooltip("Si está activo y arrancas una escena sin AudioManager, se intentará cargar un prefab 'AudioManager' desde Resources/ para que SFX/Music funcionen igualmente.")]
-    [SerializeField] bool autoBootstrapFromResources = true;
-
+    // Bootstrap automático: si arrancas una escena sin AudioManager, se intenta cargar
+    // 'Resources/AudioManager.prefab' antes de la primera escena. Corre como método estático
+    // (RuntimeInitializeOnLoadMethod) por lo que NO puede consultar flags de instancia —
+    // si quieres desactivarlo no añadas el prefab al folder Resources.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void BootstrapFromResources()
     {

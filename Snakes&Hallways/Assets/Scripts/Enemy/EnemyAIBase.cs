@@ -56,6 +56,16 @@ public class EnemyAIBase : MonoBehaviour
     [Tooltip("If the enemy first sees the player from behind, chance to charge directly without alerting.")]
     [SerializeField, Range(0f, 1f)] float chargeFromBackChance = 0.6f;
 
+    [Header("Forced Respawn — sampling")]
+    [Tooltip("Tolerancia (±m) sobre la distancia ideal al elegir el punto del NavMesh. Por debajo no se acepta el punto, por encima se aceptan los más cercanos.")]
+    [SerializeField] float forcedRespawnTolerance = 6f;
+    [Tooltip("Nº de candidatos a samplear en el NavMesh para elegir el mejor.")]
+    [SerializeField] int forcedRespawnSamples = 12;
+    [Tooltip("Si tras un respawn forzado el minotauro mira al jugador, pasa directo a Chase. Si false, vuelve a Patrol.")]
+    [SerializeField] bool forcedRespawnChasesIfFacing = true;
+    [Tooltip("Cooldown (s) entre dos respawns forzados, para evitar teleports consecutivos.")]
+    [SerializeField] float forcedRespawnCooldown = 8f;
+
     [Header("Refs")]
     [SerializeField] EnemyAnimator enemyAnim;
     [SerializeField] EnemyDetection detection;
@@ -87,6 +97,11 @@ public class EnemyAIBase : MonoBehaviour
     float chaseMemoryTimer;          // cuenta atrás de "recuerdo" tras perder LoS
     float attackCooldownTimer;       // cooldown global de ataque
     float postAttackWalkTimer;       // tiempo restante en modo Walk forzado tras impactar
+
+    // Forced respawn tracking
+    float noSightTimer;              // segundos seguidos sin tener LoS con el jugador
+    float farFromPlayerTimer;        // segundos seguidos por encima de farFromPlayerDistance
+    float forcedRespawnCooldownTimer;
 
     void Awake()
     {
@@ -168,6 +183,7 @@ public class EnemyAIBase : MonoBehaviour
         }
 
         TickIdleSounds();
+        TickForcedRespawn();
 
         switch (CurrentState)
         {
@@ -201,7 +217,7 @@ public class EnemyAIBase : MonoBehaviour
             case State.Alert: Agent.isStopped = true; enemyAnim?.TriggerAlert(); break;
             case State.Chase:
                 {
-                    var diff = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings().chaseSpeedMul : 1f;
+                    var diff = DifficultyManager.Instance ? DifficultyManager.Instance.GetRuntimeSettings().chaseSpeedMul : 1f;
                     Agent.speed = chaseSpeed * diff;
                     Agent.isStopped = false;
                     // MinotaurDetect SFX descartado.
@@ -443,7 +459,7 @@ public class EnemyAIBase : MonoBehaviour
     /// Fuerza al enemigo a caminar (sin atacar) X segundos según dificultad y arranca cooldown.</summary>
     public void NotifyAttackLanded()
     {
-        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetSettings() : null;
+        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetRuntimeSettings() : null;
         attackCooldownTimer = diff != null ? diff.attackCooldown : 2.5f;
         postAttackWalkTimer = diff != null ? diff.postAttackWalkSeconds : 4f;
         // Salimos inmediatamente del ataque al patrullaje (walk) — no persigue ni corre.
@@ -454,7 +470,7 @@ public class EnemyAIBase : MonoBehaviour
 
     float GetChaseMemoryDuration()
     {
-        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetSettings() : null;
+        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetRuntimeSettings() : null;
         return diff != null ? diff.chaseMemorySeconds : 3f;
     }
 
@@ -466,6 +482,127 @@ public class EnemyAIBase : MonoBehaviour
         float mul = Mathf.Lerp(closeMemoryMultiplier, farMemoryMultiplier, Mathf.Clamp01(t));
         return baseMem * mul;
     }
+
+    #region Forced Respawn
+    /// <summary>
+    /// Mantiene dos timers (sin LoS y "demasiado lejos") y, si superan los thresholds
+    /// definidos en DifficultyManager para la dificultad actual, teleporta al minotauro
+    /// a un punto del NavMesh a ~forcedRespawnDistance del jugador.
+    /// Sirve para evitar que el minotauro se pierda eternamente en mapas grandes
+    /// o cuando el jugador rusha lejos de él.
+    /// </summary>
+    void TickForcedRespawn()
+    {
+        if (forcedRespawnCooldownTimer > 0f) forcedRespawnCooldownTimer -= Time.deltaTime;
+
+        // No interferir con un ataque en curso ni con su "lock" post-impacto.
+        if (CurrentState == State.Attacking) { noSightTimer = 0f; farFromPlayerTimer = 0f; return; }
+        if (postAttackWalkTimer > 0f)        { noSightTimer = 0f; farFromPlayerTimer = 0f; return; }
+        if (forcedRespawnCooldownTimer > 0f) return;
+        if (DifficultyManager.Instance == null || player == null) return;
+
+        var diff = DifficultyManager.Instance.GetRuntimeSettings();
+
+        // ── Timer "sin LoS" ─────────────────────────────────────────────────
+        // Solo cuenta cuando NO tenemos visión ni estamos persiguiendo activamente.
+        bool hasLoSNow = detection != null && detection.HasLineOfSight;
+        bool actingOnPlayer = CurrentState == State.Chase || CurrentState == State.Attacking;
+        if (hasLoSNow || actingOnPlayer) noSightTimer = 0f;
+        else                              noSightTimer += Time.deltaTime;
+
+        // ── Timer "lejos del jugador" ───────────────────────────────────────
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
+        if (diff.farFromPlayerDistance > 0f && distToPlayer > diff.farFromPlayerDistance)
+            farFromPlayerTimer += Time.deltaTime;
+        else
+            farFromPlayerTimer = 0f;
+
+        // ── Triggers ────────────────────────────────────────────────────────
+        bool noSightTrigger = diff.noSightRespawnSeconds > 0f && noSightTimer       >= diff.noSightRespawnSeconds;
+        bool farTrigger     = diff.farFromPlayerSeconds  > 0f && farFromPlayerTimer >= diff.farFromPlayerSeconds;
+
+        if (noSightTrigger || farTrigger)
+        {
+            float desired = diff.forcedRespawnDistance > 0f ? diff.forcedRespawnDistance : diff.postRoomSpawnDistance;
+            if (TryForcedRespawnNearPlayer(desired))
+            {
+                noSightTimer = 0f;
+                farFromPlayerTimer = 0f;
+                forcedRespawnCooldownTimer = forcedRespawnCooldown;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Samplea N puntos del NavMesh sobre un anillo de radio ~desiredDistance alrededor
+    /// del jugador y se queda con el más cercano a la distancia ideal dentro de la tolerancia.
+    /// Evita escoger puntos visibles desde la cámara del jugador para no romper la inmersión.
+    /// </summary>
+    bool TryForcedRespawnNearPlayer(float desiredDistance)
+    {
+        if (player == null) return false;
+
+        Vector3 playerPos = player.position;
+        Camera playerCam = Camera.main; // para descartar puntos visibles
+        float bestDelta = float.PositiveInfinity;
+        Vector3 bestPoint = transform.position;
+        bool found = false;
+
+        int samples = Mathf.Max(4, forcedRespawnSamples);
+        for (int i = 0; i < samples; i++)
+        {
+            // Distribución en anillo: ángulo aleatorio + radio dentro de la tolerancia.
+            float angle = Random.value * Mathf.PI * 2f;
+            float radius = desiredDistance + Random.Range(-forcedRespawnTolerance, forcedRespawnTolerance);
+            radius = Mathf.Max(2f, radius);
+            Vector3 candidate = playerPos + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+
+            if (!NavMesh.SamplePosition(candidate, out var hit, Mathf.Max(2f, forcedRespawnTolerance), NavMesh.AllAreas))
+                continue;
+
+            // Descartar puntos directamente visibles para el jugador (evita "pop" en pantalla).
+            if (playerCam != null && IsPointVisibleToCamera(hit.position + Vector3.up * 1.5f, playerCam))
+                continue;
+
+            float delta = Mathf.Abs(Vector3.Distance(hit.position, playerPos) - desiredDistance);
+            if (delta < bestDelta)
+            {
+                bestDelta = delta;
+                bestPoint = hit.position;
+                found = true;
+            }
+        }
+
+        if (!found) return false;
+
+        Agent.Warp(bestPoint);
+        KnownPlayerPos = null;
+        chaseMemoryTimer = 0f;
+
+        // Comportamiento post-respawn: si está mirando al jugador (o así lo pide la dificultad)
+        // entra a Chase para que el jugador note el "renew". Si no, vuelve a Patrol.
+        Vector3 toPlayer = (playerPos - bestPoint); toPlayer.y = 0f;
+        bool facing = forcedRespawnChasesIfFacing && toPlayer.sqrMagnitude > 0.01f &&
+                      Vector3.Dot(transform.forward, toPlayer.normalized) > 0.3f;
+        if (facing)
+        {
+            KnownPlayerPos = playerPos;
+            BeginChase(DetectionVisibility.Frontside);
+        }
+        else
+        {
+            SetState(State.Patrol);
+        }
+        return true;
+    }
+
+    static bool IsPointVisibleToCamera(Vector3 worldPoint, Camera cam)
+    {
+        Vector3 vp = cam.WorldToViewportPoint(worldPoint);
+        if (vp.z <= 0f) return false; // detrás de la cámara
+        return vp.x > -0.05f && vp.x < 1.05f && vp.y > -0.05f && vp.y < 1.05f;
+    }
+    #endregion
 
     void UpdateAnimatorBools()
     {
@@ -507,7 +644,7 @@ public class EnemyAIBase : MonoBehaviour
     {
         if (CurrentState == State.Chase || CurrentState == State.Attacking) return;
         if (!DifficultyManager.Instance) return;
-        var diff = DifficultyManager.Instance.GetSettings();
+        var diff = DifficultyManager.Instance.GetRuntimeSettings();
         // soundReactivity 0 → ignore. 1 → directly chase.
         float roll = Random.value;
         float reactive = diff.soundReactivity * intensity;
@@ -534,7 +671,7 @@ public class EnemyAIBase : MonoBehaviour
         if (CurrentState == State.Chase || CurrentState == State.Attacking) return;
 
         // Probabilidad de ignorar (por dificultad).
-        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetSettings() : null;
+        var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetRuntimeSettings() : null;
         float ignore = diff != null ? diff.hintIgnoreChance : 0.4f;
         if (Random.value < ignore) return;
 

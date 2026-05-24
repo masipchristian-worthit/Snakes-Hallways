@@ -49,6 +49,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float jumpStaminaMin = 0.5f;
     [Tooltip("Salto extra-bajo si estás cansado.")]
     [Range(0.3f, 1f)][SerializeField] float tiredJumpMultiplier = 0.7f;
+    [Tooltip("Multiplicador de gravedad cuando vas cayendo (vy<0). 1 = gravedad normal, 2-3 = caída más rápida y peso 'profesional'.")]
+    [Range(1f, 5f)][SerializeField] float fallMultiplier = 2.2f;
+    [Tooltip("Si está activo, autoengancha la acción Jump del PlayerInput por código en Awake (recomendado: el prefab actual tiene la binding vacía).")]
+    [SerializeField] bool autoWireJumpAction = true;
 
     [Header("Ground Check")]
     [SerializeField] Transform groundCheck;
@@ -203,6 +207,7 @@ public class PlayerController : MonoBehaviour
     // Jump timers
     float coyoteTimer;
     float jumpBufferTimer;
+    UnityEngine.InputSystem.InputAction wiredJumpAction; // referencia para desuscribir en OnDisable
 
     // Movement derived
     Vector3 prevPlanarVel;
@@ -246,6 +251,37 @@ public class PlayerController : MonoBehaviour
         }
 
         EnsureAudioSources();
+        TryAutoWireJumpAction();
+    }
+
+    /// <summary>
+    /// El Player.prefab tiene el PlayerInput configurado como "Invoke Unity Events" pero la
+    /// acción Jump quedó SIN PersistentCall hacia OnJump (lista vacía en el Inspector).
+    /// Para evitar romper el Inspector wiring del resto de acciones (Move/Look/Crouch/etc.,
+    /// que sí están bien), nos enganchamos a Jump por código aquí. Si el usuario añade
+    /// también el PersistentCall en el Inspector, OnJump se llamaría DOS veces — para evitarlo
+    /// se puede desactivar autoWireJumpAction en el componente.
+    /// </summary>
+    void TryAutoWireJumpAction()
+    {
+        if (!autoWireJumpAction) return;
+        var pi = GetComponent<UnityEngine.InputSystem.PlayerInput>();
+        if (pi == null || pi.actions == null) return;
+        var act = pi.actions.FindAction("Jump", throwIfNotFound: false);
+        if (act == null) return;
+        wiredJumpAction = act;
+        act.performed += OnJump;
+        act.canceled  += OnJump;
+    }
+
+    void OnDestroy()
+    {
+        if (wiredJumpAction != null)
+        {
+            wiredJumpAction.performed -= OnJump;
+            wiredJumpAction.canceled  -= OnJump;
+            wiredJumpAction = null;
+        }
     }
 
     void EnsureAudioSources()
@@ -309,7 +345,29 @@ public class PlayerController : MonoBehaviour
         landImpulse = Mathf.MoveTowards(landImpulse, 0f, armImpulseDamp * Time.deltaTime * 0.1f);
     }
 
-    void FixedUpdate() { Movement(); }
+    void FixedUpdate()
+    {
+        Movement();
+        ApplyJumpGravityTuning();
+    }
+
+    /// <summary>
+    /// "Hyper-jump feel" estándar AAA: gravedad extra al caer (fallMultiplier) para
+    /// que el arco del salto no se sienta flotante. Combinado con el JumpCut (variable
+    /// jump height) en la subida da una sensación responsive de plataforma moderna.
+    /// </summary>
+    void ApplyJumpGravityTuning()
+    {
+        if (rb == null) return;
+        var v = rb.linearVelocity;
+        // Solo modificamos la gravedad cuando vamos cayendo. En la subida ApplyJumpCut
+        // ya hace su trabajo al soltar el botón.
+        if (v.y < 0f && fallMultiplier > 1f)
+        {
+            v += Vector3.up * Physics.gravity.y * (fallMultiplier - 1f) * Time.fixedDeltaTime;
+            rb.linearVelocity = v;
+        }
+    }
 
     void LateUpdate() { CameraLook(); }
 

@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 8162129690787020046}
   - component: {fileID: 7665687311507366341}
   - component: {fileID: 7711147918609706896}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Cube.003
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -100,7 +100,7 @@ GameObject:
   - component: {fileID: 6652567336869312257}
   - component: {fileID: 7255259477946900052}
   - component: {fileID: 3799262407758816936}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Cube.004
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -187,7 +187,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1755345618351726853}
-  m_Layer: 0
+  - component: {fileID: 9178575610423279307}
+  m_Layer: 12
   m_Name: SM_AltarModule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -216,6 +217,27 @@ Transform:
   - {fileID: 7850424342355227585}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!65 &9178575610423279307
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1375828961825979327}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.55055535, y: 4.037285, z: 4.048908}
+  m_Center: {x: -0.17534357, y: 1.9822283, z: 2.0090084}
 --- !u!1 &2667693360639222463
 GameObject:
   m_ObjectHideFlags: 0
@@ -227,7 +249,7 @@ GameObject:
   - component: {fileID: 2503131951966524783}
   - component: {fileID: 1024903348506193217}
   - component: {fileID: 2816007575031674108}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: arco3.003
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -316,7 +338,7 @@ GameObject:
   - component: {fileID: 8462549425756036125}
   - component: {fileID: 1790682288800655241}
   - component: {fileID: 8794446849112968138}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Plane.002
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -405,7 +427,7 @@ GameObject:
   - component: {fileID: 7850424342355227585}
   - component: {fileID: 6670071089258194338}
   - component: {fileID: 6040992695900741359}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: puerta con apertura.003
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -494,7 +516,7 @@ GameObject:
   - component: {fileID: 5837727510208693975}
   - component: {fileID: 3895838869143791934}
   - component: {fileID: 7585099342707106083}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Cube.002
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -583,7 +605,7 @@ GameObject:
   - component: {fileID: 2599353084192254879}
   - component: {fileID: 7732468903642568620}
   - component: {fileID: 8735828042973138781}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Cube.005
   m_TagString: Untagged
   m_Icon: {fileID: 0}

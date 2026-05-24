@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 4601543885000804884}
   - component: {fileID: 5833452393062137040}
   - component: {fileID: 2943798427859472996}
-  m_Layer: 3
+  m_Layer: 12
   m_Name: 2/2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -99,7 +99,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4948276583512030516}
-  m_Layer: 3
+  m_Layer: 12
   m_Name: SM_sueloDoble (6)
   m_TagString: Ground
   m_Icon: {fileID: 0}
@@ -134,7 +134,7 @@ GameObject:
   - component: {fileID: 1143067435514513287}
   - component: {fileID: 1118860993634404252}
   - component: {fileID: 3299731739215239576}
-  m_Layer: 3
+  m_Layer: 12
   m_Name: 2/2separacion
   m_TagString: Untagged
   m_Icon: {fileID: 0}

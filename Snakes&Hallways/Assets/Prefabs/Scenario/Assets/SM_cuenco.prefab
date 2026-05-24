@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 2786107768580423847}
   - component: {fileID: 5986561264209258502}
   - component: {fileID: 7982373953244560049}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: cuencorelleno_low
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -102,7 +102,7 @@ GameObject:
   - component: {fileID: 3307872239103933165}
   - component: {fileID: 1839085045480906868}
   - component: {fileID: 8577210808380829754}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Fire
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -228,7 +228,7 @@ GameObject:
   - component: {fileID: 3333130243260235805}
   - component: {fileID: 5147957661530062932}
   - component: {fileID: 8733829060760856078}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: cuenco_arriba
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -319,7 +319,7 @@ GameObject:
   - component: {fileID: 8336205357372141318}
   - component: {fileID: 4908249567283937284}
   - component: {fileID: 3657582058924897288}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: SM_cuenco
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -530,7 +530,7 @@ GameObject:
   - component: {fileID: 5445466556730359270}
   - component: {fileID: 5077024386069905968}
   - component: {fileID: 5966177780980947043}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Point Light
   m_TagString: Untagged
   m_Icon: {fileID: 0}

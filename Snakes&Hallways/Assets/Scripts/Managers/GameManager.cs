@@ -139,6 +139,7 @@ public class GameManager : MonoBehaviour
     {
         if (State == GameState.GameOver) return;
         State = GameState.GameOver;
+        EndRun(won: false);
         AudioManager.Instance?.PlayMusic(MusicId.GameOver);
         OnStateChanged?.Invoke(State);
         // La carga de SCN_DeathScene es responsabilidad EXCLUSIVA de DefeatManager.
@@ -150,9 +151,48 @@ public class GameManager : MonoBehaviour
     {
         if (State == GameState.Win) return;
         State = GameState.Win;
+        EndRun(won: true);
         AudioManager.Instance?.PlayMusic(MusicId.Win);
         OnStateChanged?.Invoke(State);
         if (VictoryManager.Instance == null)
             SceneTransition.Instance?.FadeAndLoad(winScene, 2f);
+    }
+
+    /// <summary>
+    /// Limpieza centralizada al terminar una partida (victoria o derrota).
+    /// Mata loops de audio, resetea contadores y deja a los managers persistentes
+    /// (GameManager, DifficultyManager, AudioManager, …) en un estado limpio para
+    /// la próxima run sin necesidad de recargar la escena del menú.
+    /// Llamado automáticamente desde TriggerWin/TriggerGameOver.
+    /// </summary>
+    public void EndRun(bool won)
+    {
+        RunActive = false;
+        // No tocamos Time.timeScale aquí — los managers de Win/Defeat lo manejan.
+
+        // Para los managers de gameplay que tienen su propio ResetRun(), llámalo.
+        // Nota: PickupManager y PortalManager solo viven en la escena de gameplay; si la
+        // estamos abandonando vía fade-and-load, igualmente conviene limpiarlos por si
+        // siguen vivos en cache de DontDestroyOnLoad o por re-entradas rápidas.
+        try { PickupManager.Instance?.ResetRun(); } catch { /* ignore */ }
+        try { PortalManager.Instance?.ResetRun(); } catch { /* ignore */ }
+
+        // Audio: corta loops del minotauro/jugador y la música actual.
+        var am = AudioManager.Instance;
+        if (am != null)
+        {
+            am.StopMusic(0.8f);
+            // Los AudioSource locales (steps, breath, idle breath) se destruyen con
+            // la escena de gameplay. Pero StopMusic resetea el track global.
+        }
+
+        // Si el inteligente sigue suelto, mátalo para que no siga lanzando hints/
+        // teleports tras la pantalla de fin.
+        var brain = EnemyAIInteligent.Instance;
+        if (brain != null) brain.enabled = false;
+
+        // Reset de contadores (no del player ref por si la escena se mantiene un instante).
+        PickupsCollected = 0;
+        OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
     }
 }
