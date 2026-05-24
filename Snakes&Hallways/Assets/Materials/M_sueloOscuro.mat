@@ -77,9 +77,15 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _CurvatureStrength: 0.405
+    - _DitherStrength: 0
+    - _FakeAOStrength: 0
+    - _HighlightDither: 0
+    - _PaletteSteps: 64
     - _Parallax: 0.08
     - _Smoothness: 0.4
     - _SmoothnessTextureChannel: 1
+    - _StylizedAOStrength: 0.502
     m_Colors:
     - _BaseColor: {r: 0.6710572, g: 0.6710572, b: 0.81761, a: 1}
     - _Color: {r: 0.6710572, g: 0.6710572, b: 0.81761, a: 1}
