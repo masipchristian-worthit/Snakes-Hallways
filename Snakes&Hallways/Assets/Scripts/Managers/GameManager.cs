@@ -9,7 +9,10 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     [Header("Timer")]
+    [Tooltip("Tiempo inicial de partida (segundos). Se copia a 'currentTime' en Start.")]
     [SerializeField] float matchTime = 600f;
+    [Tooltip("Tiempo actual restante (segundos). Editable en runtime desde el inspector.")]
+    [SerializeField] float currentTime;
     [SerializeField] string gameOverScene = "SCN_DeathScene";
     [SerializeField] string winScene = "Win";
     [SerializeField] float deathFadeTime = 1.5f;
@@ -19,7 +22,7 @@ public class GameManager : MonoBehaviour
     public Transform Player => player;
 
     public GameState State { get; private set; } = GameState.Playing;
-    public float TimeRemaining { get; private set; }
+    public float TimeRemaining { get => currentTime; private set => currentTime = value; }
     public int PickupsCollected { get; private set; }
     public int PickupsRequired { get; private set; }
 
@@ -35,7 +38,8 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        TimeRemaining = matchTime;
+        if (currentTime <= 0f) currentTime = matchTime;
+        TimeRemaining = currentTime;
         PickupsRequired = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings().pickupsRequired : 6;
         OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
         OnTimerChanged?.Invoke(TimeRemaining);
