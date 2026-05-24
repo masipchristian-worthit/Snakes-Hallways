@@ -403,6 +403,24 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: lines.Array.size
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[5]'
+      value: Rumor has it that there may be some scrolls that, when combined, could
+        save your life.
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[6]'
+      value: They are the legacy of an urban legend that tells of a wizard who managed
+        to escape after being convicted of witchcraft.
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[7]'
+      value: Now go, and fight for your fate.
+      objectReference: {fileID: 0}
     - target: {fileID: 4766324302430587323, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
       propertyPath: m_Pivot.x
       value: 0

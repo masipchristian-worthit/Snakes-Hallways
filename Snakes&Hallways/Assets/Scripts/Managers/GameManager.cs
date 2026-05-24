@@ -13,9 +13,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] float matchTime = 600f;
     [Tooltip("Tiempo actual restante (segundos). Editable en runtime desde el inspector.")]
     [SerializeField] float currentTime;
-    [SerializeField] string gameOverScene = "SCN_DeathScene";
     [SerializeField] string winScene = "Win";
-    [SerializeField] float deathFadeTime = 1.5f;
 
     [Header("Run")]
     [Tooltip("Nombre de la escena de gameplay. Al cargarla se arranca la run; al salir se resetea.")]
@@ -30,6 +28,7 @@ public class GameManager : MonoBehaviour
     public int PickupsCollected { get; private set; }
     public int PickupsRequired { get; private set; }
     public bool RunActive { get; private set; }
+    public bool UnlimitedTime { get; private set; }
 
     public event Action<int, int> OnPickupCountChanged;
     public event Action<float> OnTimerChanged;
@@ -61,6 +60,7 @@ public class GameManager : MonoBehaviour
     void Update()
     {
         if (!RunActive || State != GameState.Playing) return;
+        if (UnlimitedTime) return;
         TimeRemaining -= Time.deltaTime;
         OnTimerChanged?.Invoke(TimeRemaining);
         if (TimeRemaining <= 0f)
@@ -77,9 +77,12 @@ public class GameManager : MonoBehaviour
         State = GameState.Playing;
         Time.timeScale = 1f;
 
-        TimeRemaining = matchTime;
+        var diff = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings() : null;
+        float configured = diff != null ? diff.matchTimeSeconds : matchTime;
+        UnlimitedTime = configured <= 0f;
+        TimeRemaining = UnlimitedTime ? 0f : configured;
         PickupsCollected = 0;
-        PickupsRequired = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings().pickupsRequired : 6;
+        PickupsRequired = diff != null ? diff.pickupsRequired : 6;
 
         // Re-busca el player en la nueva escena.
         if (player == null)
@@ -138,7 +141,9 @@ public class GameManager : MonoBehaviour
         State = GameState.GameOver;
         AudioManager.Instance?.PlayMusic(MusicId.GameOver);
         OnStateChanged?.Invoke(State);
-        SceneTransition.EnsureInstance()?.FadeAndLoad(gameOverScene, deathFadeTime);
+        // La carga de SCN_DeathScene es responsabilidad EXCLUSIVA de DefeatManager.
+        // Si no existe, no se carga nada (evita rutas duplicadas a la escena de muerte).
+        DefeatManager.Instance?.TriggerDefeat();
     }
 
     public void TriggerWin()

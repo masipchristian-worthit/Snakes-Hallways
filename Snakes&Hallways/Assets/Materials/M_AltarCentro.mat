@@ -131,14 +131,18 @@ Material:
     - _AOExtremesStrength: 0.45
     - _AOFalloffPower: 2.5
     - _AOFarStrength: 1
+    - _AOLevel1Mul: 0.24000001
+    - _AOLevel2Mul: 0.908
+    - _AOLevel3Mul: 3.2
     - _AONearStrength: 0
     - _AOStartDistance: 4
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
+    - _AlwaysGranulation: 1
     - _AmbientDarkness: 0.3
-    - _AmbientLift: 0.12
-    - _AmbientLiftFadeDistance: 8
+    - _AmbientLift: 0
+    - _AmbientLiftFadeDistance: 2
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BlendSoftness: 0.6
@@ -147,13 +151,16 @@ Material:
     - _ClearCoatSmoothness: 0
     - _Contrast: 1.12
     - _Cull: 2
-    - _CurvatureStrength: 0.405
+    - _CurvatureStrength: 0.2
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
     - _DetailNoise: 1
     - _DetailNormalMapScale: 1
-    - _DitherScale: 1
-    - _DitherStrength: 0.3
+    - _DitherLevel1Mul: 1
+    - _DitherLevel2Mul: 1.87
+    - _DitherLevel3Mul: 3.72
+    - _DitherScale: 2
+    - _DitherStrength: 0.276
     - _DownwardBias: 0.2
     - _DstBlend: 0
     - _DstBlendAlpha: 0
@@ -166,9 +173,9 @@ Material:
     - _EnvironmentReflections: 1
     - _Exposure: 1
     - _FakeAOContrast: 1.8
-    - _FakeAODepthSensitivity: 1
-    - _FakeAONormalSensitivity: 2.5
-    - _FakeAOStrength: 1
+    - _FakeAODepthSensitivity: 1.5
+    - _FakeAONormalSensitivity: 3.5
+    - _FakeAOStrength: 0.816
     - _FloorGrimeBoost: 1.3
     - _FogDensityRadius: 4
     - _FogFullDistance: 18
@@ -186,9 +193,14 @@ Material:
     - _GrimeDirectionality: 0.7
     - _GrimeIntensity: 0.55
     - _GrimeScale: 1
-    - _HighlightDither: 0.3
+    - _HighlightDither: 0.276
     - _HighlightSoftness: 0.15
-    - _HighlightThreshold: 0.85
+    - _HighlightThreshold: 0
+    - _Level1Distance: 3
+    - _Level2Distance: 8
+    - _Level3FogStart: 8
+    - _Level3FogStrength: 0.4
+    - _LevelBlend: 1.5
     - _MaskMapStrength: 0
     - _MaxBrightness: 8
     - _Metallic: 0
@@ -196,10 +208,13 @@ Material:
     - _NoiseBreakup: 0.5
     - _NoiseContrast: 0.65
     - _NoiseScale: 3.5
-    - _NormalStrength: 1
-    - _OcclusionStrength: 1
-    - _PaletteSaturation: 1
-    - _PaletteSteps: 32
+    - _NormalDitherStrength: 0.5
+    - _NormalRimPower: 3
+    - _NormalRimStrength: 0.5
+    - _NormalStrength: 2
+    - _OcclusionStrength: 0.5
+    - _PaletteSaturation: 0.824
+    - _PaletteSteps: 42.68
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
@@ -211,8 +226,8 @@ Material:
     - _SeamIntensity: 3
     - _SeamThreshold: 0.15
     - _SeamWidthPower: 0.35
-    - _ShadowAOBoost: 1.5
-    - _ShadowAOThreshold: 0.35
+    - _ShadowAOBoost: 2.72
+    - _ShadowAOThreshold: 0.5
     - _ShadowIntensity: 0.5
     - _Smoothness: 0.5
     - _SmoothnessTextureChannel: 0
@@ -241,6 +256,8 @@ Material:
     - _FogColor: {r: 0.23899996, g: 0.15599996, b: 0.09399996, a: 1}
     - _FresnelColor: {r: 0.35999998, g: 0.28999996, b: 0.21899995, a: 1}
     - _GrimeColor: {r: 0.12099997, g: 0.07399999, b: 0.031, a: 1}
+    - _Level3FogColor: {r: 0.02, g: 0.015, b: 0.01, a: 1}
+    - _NormalRimColor: {r: 0, g: 0, b: 0, a: 1}
     - _SeamDarkenColor: {r: 0.16399997, g: 0.10099997, b: 0.061999977, a: 1}
     - _ShadowTint: {r: 0.23099995, g: 0.14099997, b: 0.081999965, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}

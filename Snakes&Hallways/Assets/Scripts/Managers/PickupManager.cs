@@ -1,9 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PickupManager : MonoBehaviour
 {
     public static PickupManager Instance { get; private set; }
+
+    [Header("Run")]
+    [Tooltip("Solo spawnea pickups cuando esta escena está activa.")]
+    [SerializeField] string gameplaySceneName = "SCN_Labe";
 
     [Header("Candidate spawn points (transforms in scene).")]
     [SerializeField] List<Transform> candidatePoints = new();
@@ -14,16 +19,46 @@ public class PickupManager : MonoBehaviour
     [SerializeField] bool useExistingPickups = false;
     [SerializeField] List<Pickup> existingPickups = new();
 
+    readonly List<Pickup> spawned = new();
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
     }
 
+    void OnEnable()  => SceneManager.sceneLoaded += HandleSceneLoaded;
+    void OnDisable() => SceneManager.sceneLoaded -= HandleSceneLoaded;
+
     void Start()
     {
+        if (SceneManager.GetActiveScene().name == gameplaySceneName) BeginRun();
+        else ResetRun();
+    }
+
+    void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == gameplaySceneName) BeginRun();
+        else ResetRun();
+    }
+
+    public void BeginRun()
+    {
+        ResetRun();
+        // El número de pickups proviene SIEMPRE de la dificultad activa.
         int required = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings().pickupsRequired : 6;
         SpawnPickups(required);
+    }
+
+    public void ResetRun()
+    {
+        for (int i = 0; i < spawned.Count; i++)
+            if (spawned[i] != null) Destroy(spawned[i].gameObject);
+        spawned.Clear();
+
+        if (useExistingPickups)
+            for (int i = 0; i < existingPickups.Count; i++)
+                if (existingPickups[i] != null) existingPickups[i].SetActiveCandidate(false);
     }
 
     void SpawnPickups(int amount)
@@ -32,7 +67,7 @@ public class PickupManager : MonoBehaviour
         {
             Shuffle(existingPickups);
             for (int i = 0; i < existingPickups.Count; i++)
-                existingPickups[i].SetActiveCandidate(i < amount);
+                if (existingPickups[i] != null) existingPickups[i].SetActiveCandidate(i < amount);
             return;
         }
 
@@ -42,7 +77,8 @@ public class PickupManager : MonoBehaviour
         amount = Mathf.Min(amount, picked.Count);
         for (int i = 0; i < amount; i++)
         {
-            Instantiate(pickupPrefab, picked[i].position, picked[i].rotation);
+            var p = Instantiate(pickupPrefab, picked[i].position, picked[i].rotation);
+            spawned.Add(p);
         }
     }
 

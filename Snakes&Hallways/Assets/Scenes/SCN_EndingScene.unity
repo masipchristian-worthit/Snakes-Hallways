@@ -351,11 +351,19 @@ PrefabInstance:
       value: SCN_MainMenu
       objectReference: {fileID: 0}
     - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: lines.Array.size
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
       propertyPath: 'lines.Array.data[0]'
-      value: You did it.
+      value: It was real, the scrolls, the way out, it was real.
       objectReference: {fileID: 0}
     - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
       propertyPath: 'lines.Array.data[1]'
+      value: You did it.
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[2]'
       value: You managed to gather the scrolls and pass through the portal.
       objectReference: {fileID: 0}
     - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
@@ -365,6 +373,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
       propertyPath: 'lines.Array.data[4]'
+      value: You can live in peace.
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[5]'
       value: You can live in peace.
       objectReference: {fileID: 0}
     - target: {fileID: 4766324302430587323, guid: 878795f03d06d30409b7bce7661cc455, type: 3}

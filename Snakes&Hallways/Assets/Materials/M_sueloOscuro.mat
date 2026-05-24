@@ -78,27 +78,45 @@ Material:
     m_Ints: []
     m_Floats:
     - _AOFarStrength: 1
+    - _AOLevel1Mul: 0.24000001
+    - _AOLevel2Mul: 0.908
+    - _AOLevel3Mul: 3.2
     - _AONearStrength: 0
-    - _AmbientLift: 0.12
-    - _CurvatureStrength: 0.405
-    - _DitherStrength: 0.3
-    - _FakeAODepthSensitivity: 1
-    - _FakeAONormalSensitivity: 2.5
-    - _FakeAOStrength: 1
-    - _HighlightDither: 0.3
+    - _AmbientLift: 0
+    - _AmbientLiftFadeDistance: 2
+    - _CurvatureStrength: 0.2
+    - _DitherLevel1Mul: 1
+    - _DitherLevel2Mul: 1.87
+    - _DitherLevel3Mul: 3.72
+    - _DitherScale: 2
+    - _DitherStrength: 0.276
+    - _Exposure: 1
+    - _FakeAODepthSensitivity: 1.5
+    - _FakeAONormalSensitivity: 3.5
+    - _FakeAOStrength: 0.816
+    - _HighlightDither: 0.276
     - _HighlightSoftness: 0.15
-    - _HighlightThreshold: 0.85
+    - _HighlightThreshold: 0
+    - _Level1Distance: 3
+    - _Level2Distance: 8
+    - _Level3FogStart: 8
+    - _Level3FogStrength: 0.4
+    - _LevelBlend: 1.5
     - _MaxBrightness: 8
-    - _PaletteSaturation: 1
-    - _PaletteSteps: 32
+    - _NormalStrength: 2
+    - _OcclusionStrength: 0.5
+    - _PaletteSaturation: 0.824
+    - _PaletteSteps: 42.68
     - _Parallax: 0.08
-    - _ShadowAOBoost: 1.5
-    - _ShadowAOThreshold: 0.35
+    - _ShadowAOBoost: 2.72
+    - _ShadowAOThreshold: 0.5
     - _Smoothness: 0.4
     - _SmoothnessTextureChannel: 1
     - _StylizedAOStrength: 0
     m_Colors:
+    - _AmbientLiftTint: {r: 1, g: 1, b: 1, a: 1}
     - _BaseColor: {r: 0.6710572, g: 0.6710572, b: 0.81761, a: 1}
     - _Color: {r: 0.6710572, g: 0.6710572, b: 0.81761, a: 1}
+    - _Level3FogColor: {r: 0.02, g: 0.015, b: 0.01, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

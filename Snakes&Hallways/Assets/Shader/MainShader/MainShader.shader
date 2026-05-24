@@ -32,7 +32,7 @@ Shader "Custom/MainShader"
 
         [Header(Emission)]
         [HDR]         _EmissionColor    ("Emission Color",    Color)      = (0,0,0,1)
-                      _EmissionMap      ("Emission Map",      2D)         = "black" {}
+        [NoScaleOffset] _EmissionMap    ("Emission Map",      2D)         = "white" {}
 
         [Header(Stylized Triplanar AO  neutral darkening)]
                       _StylizedAOMap      ("AO Overlay Map",          2D)           = "black" {}
@@ -78,6 +78,12 @@ Shader "Custom/MainShader"
                       _HighlightThreshold      ("Highlight Luma Threshold",    Range(0,2))   = 0.85
                       _PaletteSteps            ("Palette Steps per Channel",   Range(2,64))  = 48
                       _PaletteSaturation       ("Palette Saturation",          Range(0,1.5)) = 1.00
+
+        [Header(Semicartoon Tetrico  Normal Driven Rim and Dither)]
+                      _NormalRimStrength       ("Normal Rim Strength",         Range(0,2))   = 0.5
+                      _NormalRimPower          ("Normal Rim Power",            Range(0.5,8)) = 3.0
+                      _NormalRimColor          ("Normal Rim Color",            Color)        = (0,0,0,1)
+                      _NormalDitherStrength    ("Normal Dither Strength",      Range(0,2))   = 0.5
 
         [Header(Highlight Softness  Reinhard rolloff)]
                       _HighlightSoftness       ("Highlight Softness",          Range(0,1))   = 0.10
@@ -188,6 +194,10 @@ Shader "Custom/MainShader"
                 float  _PaletteSteps;
                 float  _PaletteSaturation;
 
+                float  _NormalRimStrength;
+                float  _NormalRimPower;
+                float4 _NormalRimColor;
+                float  _NormalDitherStrength;
                 float  _HighlightSoftness;
 
                 float  _AmbientLift;
@@ -367,6 +377,19 @@ Shader "Custom/MainShader"
                 color.rgb *= _Exposure;
 
                 // ============================================================
+                // NORMAL RIM (semicartoon Lethal/Inscryption silhouette)
+                //   Fresnel based on world normal vs view: silhouettes get
+                //   tinted toward _NormalRimColor. Slider _NormalRimStrength
+                //   controls intensity (0 = off).
+                // ============================================================
+                if (_NormalRimStrength > 0.0)
+                {
+                    float ndv  = saturate(1.0 - saturate(dot(normalWS, SafeNormalize(IN.viewDirWS))));
+                    float rim  = pow(ndv, _NormalRimPower) * _NormalRimStrength;
+                    color.rgb  = lerp(color.rgb, _NormalRimColor.rgb, saturate(rim));
+                }
+
+                // ============================================================
                 // SCREEN-SPACE FAKE AO  (Buckshot/Lethal/REPO style)
                 //   Detects normal discontinuities (corners, joints) via
                 //   ddx/ddy of world normal, and depth gaps (mesh silhouettes
@@ -418,6 +441,12 @@ Shader "Custom/MainShader"
                 uint2 pixCoord = uint2(IN.positionCS.xy / max(_DitherScale, 1.0));
                 float bayer    = Bayer8x8(pixCoord);
                 ao = saturate(ao + (bayer - 0.5) * _DitherStrength * ditherLevelMul);
+
+                // Normal-driven dither: areas with high normal variation
+                // (curvature, creases, silhouettes) get extra bayer-based
+                // granulation. Independent of light/shadow.
+                float normalDither = bayer * saturate(normCurv) * _NormalDitherStrength;
+                ao = saturate(ao + normalDither);
 
                 // --- Apply darkening to lighting (preserve emission) ---
                 {

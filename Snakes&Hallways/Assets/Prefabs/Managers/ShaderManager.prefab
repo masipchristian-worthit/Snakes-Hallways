@@ -49,14 +49,65 @@ MonoBehaviour:
   - {fileID: 2100000, guid: d1b9068d288358c4d83514edf908b1a2, type: 2}
   - {fileID: 2100000, guid: 59bf15afe2266ca46a9c315bc3961125, type: 2}
   - {fileID: 2100000, guid: d154d2fb394880f4cb15af1ebdd4e33d, type: 2}
-  stylizedAOStrength: 0.502
-  aoExtremesStrength: 0.45
-  aoStartDistance: 4
-  aoEndDistance: 14
+  - {fileID: 2100000, guid: 44477f1edfff98b4da9f3dc9e5ca2725, type: 2}
+  - {fileID: 2100000, guid: 05f00d3fd68353e438dcc850485cf871, type: 2}
+  - {fileID: 2100000, guid: 657b1b5a634e8ae4b86ab6ff14d2956f, type: 2}
+  - {fileID: 2100000, guid: 6d0f1eef997f5234ab957530478d150c, type: 2}
+  - {fileID: 2100000, guid: 749547613c2b7774f89ec376e348b292, type: 2}
+  - {fileID: 2100000, guid: 360e0f05cff957b47b7f7fa21a6ec1ec, type: 2}
+  - {fileID: 2100000, guid: efcc351bc5a889b48a96ac5960a912aa, type: 2}
+  - {fileID: 2100000, guid: b96a99e31278ae1408253385926ca101, type: 2}
+  - {fileID: 2100000, guid: 11480d38f724a23498a4a96b936c664d, type: 2}
+  - {fileID: 2100000, guid: 312ade6cdd6b19444a30808c377e0612, type: 2}
+  - {fileID: 2100000, guid: a0e3666905857494cbb8af28e8859e9d, type: 2}
+  - {fileID: 2100000, guid: 42337db252a6e314ab06b7453de3216b, type: 2}
+  - {fileID: 2100000, guid: 886dfd2b8af1b61428bc0e1187c3f005, type: 2}
+  - {fileID: 2100000, guid: e9f320629f834a648a2d59f67eecb5c3, type: 2}
+  - {fileID: 2100000, guid: 8288c4c6ee1458443b4c2e5f5d6c9f99, type: 2}
+  - {fileID: 2100000, guid: 11ad52a7485234b4c89b463b1c5b1daa, type: 2}
+  - {fileID: 2100000, guid: 3ea4f46e2b3ce9149b281b5b45f6b28b, type: 2}
+  - {fileID: 2100000, guid: e61c68497df0819479a94995aecafe0b, type: 2}
+  - {fileID: 2100000, guid: 1832af296f78b4448af9db205c408365, type: 2}
+  - {fileID: 2100000, guid: fd3e563d70a394544b6e336b97907ba4, type: 2}
+  masterVisibility: 0.4
+  exposure: 1
+  maxBrightness: 8
+  fakeAOEnabled: 1
+  ditherEnabled: 1
+  paletteEnabled: 1
+  highlightGranulateEnabled: 1
+  stylizedTriplanarEnabled: 0
+  stylizedAOStrength: 0.71
+  fakeAOStrength: 2.04
+  fakeAONormalSensitivity: 3.5
+  fakeAODepthSensitivity: 1.5
+  level1Distance: 3
+  level2Distance: 8
+  levelBlend: 1.5
+  aoLevel1Mul: 0.6
+  aoLevel2Mul: 2.27
+  aoLevel3Mul: 8
+  ditherLevel1Mul: 1
+  ditherLevel2Mul: 1.87
+  ditherLevel3Mul: 3.72
+  level3FogStrength: 1
+  level3FogColor: {r: 0.02, g: 0.015, b: 0.01, a: 1}
+  level3FogStart: 8
+  shadowAOBoost: 2.72
+  shadowAOThreshold: 0.5
+  ditherStrength: 0.69
+  ditherScale: 2
+  highlightDither: 0.69
+  highlightThreshold: 0
+  paletteSteps: 10.7
+  paletteSaturation: 0.56
   highlightSoftness: 0.15
-  normalStrength: 1
-  occlusionStrength: 1
-  curvatureStrength: 0.405
+  ambientLift: 0
+  ambientLiftFadeDistance: 2
+  ambientLiftTint: {r: 1, g: 1, b: 1, a: 1}
+  normalStrength: 2
+  occlusionStrength: 0.5
+  curvatureStrength: 0.2
   dontDestroyOnLoad: 1
   applyOnAwake: 1
   applyOnValidate: 1

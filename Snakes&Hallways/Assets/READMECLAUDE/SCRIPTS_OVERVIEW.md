@@ -162,7 +162,52 @@ HUD + Pausa con paneles que entran deslizando desde la izquierda.
 - `TogglePause(bool)` engancha con `GameManager.Pause` y gestiona cursor.
 
 ### `ShaderManager.cs` (singleton opcional DontDestroyOnLoad)
-Controla globalmente propiedades del shader `Custom/MainShader`. Auto-fill desde escena en editor.
+Controla globalmente propiedades del shader `Custom/MainShader` (v2.6 — Scene Extremes AO + Reinhard, sin filtro sepia). Auto-fill desde escena en editor.
+
+**Estado actual (2026-05-24):** la rama `MonedaShader` ha avanzado **más allá** de lo descrito en `README.md` v2.6. El ShaderManager actual NO usa ya `aoExtremesStrength / aoStartDistance / aoEndDistance` (sistema de 2 distancias). Lo ha reemplazado por un **sistema de 3 niveles de distancia** + dither/palette + ambient lift + exposure/maxBrightness. El `README.md` debería re-versionarse a v2.7 cuando se cierre la rama.
+
+**Master controls:**
+- `masterVisibility` (0..1) — multiplicador global de TODOS los efectos estilizados. 0 = URP/Lit puro. 1 = full effect.
+- `exposure` (0..3) — multiplicador lineal post-PBR.
+- `maxBrightness` (0.5..8) — ceiling por canal RGB (anti-burn duro).
+
+**Feature toggles (4 capas independientes):**
+- `fakeAOEnabled` — Screen-space fake AO (normal + depth sensitivity).
+- `ditherEnabled` — Bayer dither sobre el color final.
+- `paletteEnabled` — quantización PSX-style (paletteSteps 2..64).
+- `highlightGranulateEnabled` — dither extra en zonas brillantes.
+- `stylizedTriplanarEnabled` — triplanar AO opcional (default OFF).
+
+**Sistema de 3 niveles de distancia (NUEVO, reemplaza Scene Extremes AO):**
+- `level1Distance` (3 m default) — fin del nivel Base.
+- `level2Distance` (8 m default) — fin del nivel Intermedio. Más allá = nivel Total.
+- `levelBlend` (1.5 m) — softness de transición entre niveles.
+- `aoLevel1Mul / aoLevel2Mul / aoLevel3Mul` (0.6 / 1.8 / 4.0) — intensidad de AO por nivel.
+- `ditherLevel1Mul / 2 / 3` (1.0 / 1.7 / 2.6) — intensidad de dither por nivel.
+- `level3FogStrength` (0.85), `level3FogColor` (casi negro), `level3FogStart` (0 m post-L2) — niebla shader-side que mata el nivel 3.
+
+**Otros bloques:**
+- **Fake AO (screen-space):** `fakeAOStrength`, `fakeAONormalSensitivity` (2.5), `fakeAODepthSensitivity` (1.0).
+- **Shadow accumulation:** `shadowAOBoost` (1.5), `shadowAOThreshold` (0.35).
+- **Dither + Palette:** `ditherStrength` (0.15), `ditherScale` (1), `highlightDither` (0.15), `highlightThreshold` (0.85), `paletteSteps` (48), `paletteSaturation` (1).
+- **Highlight Softness (Reinhard rolloff):** `highlightSoftness` (0.10).
+- **Ambient Lift (suelo de visibilidad, OFF default):** `ambientLift` (0), `ambientLiftFadeDistance` (8 m), `ambientLiftTint` (white). Levanta píxeles no iluminados hacia su propio albedo (preserva textura, no lava a gris).
+- **Surface overrides:** `normalStrength`, `occlusionStrength`, `curvatureStrength`.
+
+**Presets de inspector (botones):**
+- `BUILD MODE` — `masterVisibility=0` + ambientLift 0.20/30m + fog off. Para editar escena cómodamente.
+- `Gameplay (Default)` — todos los defaults v2.7.
+- `Inscryption Heavy` — palette 24, AO multiplicado, fog 0.95, niveles más agresivos.
+
+**Botones extra:** Pure URP (visibility=0), Subtle (0.4), Full (1.0).
+
+**Flujo runtime:**
+- `Awake` → si `applyOnAwake`, ejecuta `ApplyToAll()` → escribe TODAS las propiedades en cada material de `targetMaterials`.
+- En editor, `OnValidate` reaplica (delayCall para evitar SendMessage warnings).
+- `Register(Material)` para añadir materiales dinámicamente desde código.
+- `AutoFillFromScene()` (ContextMenu + botón) escanea todos los Renderer y mete los materiales cuyo shader es `Custom/MainShader`.
+
+**Importante:** los efectos están **gated** por toggle + masterVisibility. Si quieres exponer un slider "Calidad Shader" en el menú de settings, basta con escribir `ShaderManager.Instance.masterVisibility = v; ShaderManager.Instance.ApplyToAll();`.
 
 ### `SpyCamController.cs` (singleton) — **rehecho**
 Cámara espía del enemigo (tecla **C**).
@@ -247,8 +292,18 @@ Componente que va sobre un `TMP_Text`. Muestra `GameManager.TimeRemaining` en fo
 - Color rojo cuando quedan menos de `lowTimeThreshold` (30 s por defecto).
 - Fallback `--:--` si `GameManager.Instance` aún no existe.
 
+### `SettingsManager.cs` (singleton DontDestroyOnLoad)
+Persistencia + aplicación de audio, sensibilidad, gráficos, rebindings.
+
+- **Audio:** `Master / Sfx / Music / Ui` (0..1). Si hay `AudioMixer` asignado, escribe en dB con curva log. Si no, escala vía `AudioListener.volume` + `AudioManager.SetSfxScale / SetMusicScale`.
+- **Sensibilidad:** `Sensitivity` (0.01..2). Se aplica a `PlayerController.MouseSensitivity` buscando el tag Player.
+- **Gráficos:** `Fullscreen`, `VSync`, `SetResolution(w,h)`. Se guardan en `PlayerPrefs` (`SH_*`).
+- **Rebindings:** `PersistBindingOverrides()` / `ResetBindings()` sobre el `InputActionAsset` asignado.
+- **Reset:** `ResetAllToDefaults()` repone audio + sensibilidad + bindings.
+- **Evento:** `OnSettingsChanged` se dispara tras cualquier `ApplyAll`.
+
 ### `SettingsUIPanel.cs`
-Panel de settings (sliders de volumen, etc.).
+Panel UI que cablea sliders/toggles/dropdown contra `SettingsManager`. Ya existe y enlaza por inspector. Ver sección **"Cableado del panel de Settings"** más abajo para la guía de wiring del prefab `UI_MainMenu`.
 
 ---
 
@@ -326,6 +381,100 @@ Enemy (root, tag Enemy, layer Enemy)
 10. **Steps por superficie** — actualmente todo es `PlayerStepStone`.
 11. **Feedback de pickup recogido** (VFX, flash, screen shake — el sistema ya está).
 12. **`DefeatManager` vs `SCN_DeathScene`** — decidir si quieres pantalla in-game o escena dedicada. Hoy `GameManager.TriggerGameOver` carga la escena directamente y `DefeatManager` queda huérfano salvo que lo enganches manualmente.
+
+---
+
+# 🎛️ Cableado del panel de Settings (UI_MainMenu)
+
+Jerarquía actual del prefab:
+
+```
+UI_MainMenu
+├── UI_RawImage
+├── Scroll View
+├── Slider_MasterVolume
+├── Slider_SoundEffects
+├── Slider_Music
+├── Slider_UIVolume
+├── Slider_CameraSensibilty
+├── Toggle_VSync
+├── Toggle_FullScreen
+├── Dropdown_Resolution
+├── Button_BackToMenu
+└── Button_ResetToDefault
+```
+
+## Pasos
+
+1. **Añade el componente `SettingsUIPanel`** al GameObject `UI_MainMenu` (o al panel padre que contiene estos hijos).
+2. **Asegura que existe un `SettingsManager`** en escena (GameObject vacío con el script). Es singleton DontDestroyOnLoad, así que solo necesita estar en la primera escena cargada.
+3. **Arrastra cada hijo** al slot correspondiente del inspector del `SettingsUIPanel`:
+
+| Campo del inspector (SettingsUIPanel) | Arrastra este GameObject | Componente que se usa |
+|---|---|---|
+| Master Volume Slider | `Slider_MasterVolume` | `Slider` |
+| Sfx Volume Slider | `Slider_SoundEffects` | `Slider` |
+| Music Volume Slider | `Slider_Music` | `Slider` |
+| Ui Volume Slider | `Slider_UIVolume` | `Slider` |
+| Mouse Sensitivity Slider | `Slider_CameraSensibilty` | `Slider` |
+| Fullscreen Toggle | `Toggle_FullScreen` | `Toggle` |
+| Vsync Toggle | `Toggle_VSync` | `Toggle` |
+| Resolution Dropdown | `Dropdown_Resolution` | `Dropdown` ⚠ |
+| Reset Button | `Button_ResetToDefault` | `Button` |
+| Close Button | `Button_BackToMenu` | `Button` |
+
+4. **Configura rangos de los sliders** (en el inspector del Slider, no en código):
+   - Master / SFX / Music / UI → `Min Value = 0`, `Max Value = 1`, `Whole Numbers = false`.
+   - Camera Sensibilty → el script fuerza `min=0.01`, `max=2` en `Start`, así que no hace falta tocarlo, pero por claridad ponlo igual en el inspector.
+
+5. **`Button_BackToMenu`** está cableado por `SettingsUIPanel` a `gameObject.SetActive(false)` (oculta el panel). Si lo que quieres es volver al **menú principal de verdad** (cambiar de escena o de panel raíz), NO uses ese slot — déjalo vacío y mete un `OnClick` manual en el inspector que apunte a tu lógica (p. ej. `SceneTransition.EnsureInstance().FadeAndLoad("SCN_MainMenu", 0.4f)`).
+
+## ⚠ Dropdown — UI clásico vs TextMeshPro
+
+`SettingsUIPanel.cs` usa **`UnityEngine.UI.Dropdown`** (el legacy). Si tu `Dropdown_Resolution` es un **`TMP_Dropdown`** (lo normal en proyectos modernos), el slot del inspector NO te dejará arrastrarlo y compilará error. Dos opciones:
+
+- **A (recomendada)** — cambia el slot a TMP:
+  ```csharp
+  using TMPro;
+  [SerializeField] TMP_Dropdown resolutionDropdown;
+  ```
+  y en `SetupResolutionDropdown` cambia `Dropdown.OptionData` por `TMP_Dropdown.OptionData`. El resto del flujo es idéntico.
+- **B** — reemplaza el componente de la jerarquía por un `Dropdown` clásico.
+
+## ⚠ AudioMixer (opcional pero recomendado)
+
+Si quieres que SFX/Music/UI vayan a **buses separados** de verdad (y no solo escalados del AudioManager), crea un `AudioMixer` con 4 grupos y expón sus volúmenes:
+
+1. Project → Create → Audio Mixer → `Mixer_Main`.
+2. Crea grupos `Master / SFX / Music / UI`.
+3. Click derecho sobre el slider de volumen de cada grupo → **Expose to script** y renombra a `MasterVolume`, `SFXVolume`, `MusicVolume`, `UIVolume`.
+4. En el `SettingsManager` del inspector, asigna `mixer = Mixer_Main` y deja los nombres de param tal cual (ya coinciden).
+5. En `AudioManager`, asigna `Output Audio Mixer Group` a cada `AudioSource` del pool según su tipo.
+
+Sin AudioMixer, el script sigue funcionando (fallback `AudioListener.volume` + `AudioManager.SetSfxScale/SetMusicScale`), pero el slider de UI no afectará nada porque no hay categoría UI en el AudioManager — funcionará solo si usas mixer.
+
+## ⚠ Shader Quality (opcional — si quieres exponerlo en este panel)
+
+No hay slot en `SettingsUIPanel` para esto. Si quieres añadir, p. ej., un `Slider_ShaderQuality` (0..1):
+
+```csharp
+[SerializeField] Slider shaderQualitySlider;
+
+// dentro de Start, tras InitializeGraphicsSettings():
+if (shaderQualitySlider != null && ShaderManager.Instance != null)
+{
+    shaderQualitySlider.minValue = 0f;
+    shaderQualitySlider.maxValue = 1f;
+    shaderQualitySlider.value = ShaderManager.Instance.masterVisibility;
+    shaderQualitySlider.onValueChanged.AddListener(v =>
+    {
+        ShaderManager.Instance.masterVisibility = v;
+        ShaderManager.Instance.ApplyToAll();
+    });
+}
+```
+
+(no se persiste en PlayerPrefs todavía — añadir clave `SH_ShaderQuality` en `SettingsManager` si se quiere persistencia).
 
 ---
 

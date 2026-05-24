@@ -34,10 +34,6 @@ public class EnemyAIBase : MonoBehaviour
     [SerializeField] float chaseSpeed = 5.2f;
     [SerializeField] float investigateSpeed = 3f;
 
-    [Header("Detection thresholds")]
-    [SerializeField, Range(0f, 1f)] float alertThreshold = 0.45f;
-    [SerializeField, Range(0f, 1f)] float chaseThreshold = 0.85f;
-
     [Header("Attack")]
     [SerializeField] float attackRange = 2.5f;
     [Tooltip("Duración (s) del estado Attacking. Debe ser >= a la duración de la animación de ataque.")]

@@ -1,118 +1,102 @@
-using System.Collections;
-using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
+/// <summary>
+/// Único punto de entrada hacia SCN_DeathScene.
+/// - DontDestroyOnLoad: persiste entre escenas como singleton.
+/// - Solo arma listeners (PlayerHealth, GameManager state) en la escena de gameplay.
+/// - Al disparar derrota, hace fade a negro y carga SCN_DeathScene.
+///
+/// IMPORTANTE: ningún otro script debe cargar SCN_DeathScene directamente.
+/// GameManager.TriggerGameOver delega aquí.
+/// </summary>
 public class DefeatManager : MonoBehaviour
 {
     public static DefeatManager Instance { get; private set; }
 
-    [Header("Refs de escena")]
-    [SerializeField] PlayerHealth playerHealth;
+    [Header("Run")]
+    [Tooltip("Escena en la que se arma este manager (solo escucha a PlayerHealth/GameManager aquí).")]
+    [SerializeField] string gameplaySceneName = "SCN_Labe";
 
-    [Header("Pantalla de derrota")]
-    [SerializeField] CanvasGroup defeatCanvasGroup;
-    [SerializeField] TMP_Text defeatTitleLabel;
-    [SerializeField] TMP_Text defeatSubtitleLabel;
-    [SerializeField] Button mainMenuButton;
+    [Header("Death scene")]
+    [SerializeField] string deathSceneName = "SCN_DeathScene";
+    [SerializeField] float fadeTime = 1.5f;
 
-    [Header("Textos")]
-    [SerializeField] string titleText = "DEFEAT";
-    [SerializeField] string subtitleDeathText = "Has caído.";
-    [SerializeField] string subtitleTimerText = "Se ha acabado el tiempo.";
-
-    [Header("Transición")]
-    [SerializeField] float fadeInTime = 1.2f;
-    [SerializeField] string mainMenuSceneName = "MainMenu";
-
+    PlayerHealth playerHealth;
     bool isDefeated;
+    bool armed;
 
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-
-        if (defeatCanvasGroup)
-        {
-            defeatCanvasGroup.alpha = 0f;
-            defeatCanvasGroup.blocksRaycasts = false;
-            defeatCanvasGroup.interactable = false;
-        }
-
-        if (mainMenuButton)
-        {
-            mainMenuButton.gameObject.SetActive(false);
-            mainMenuButton.onClick.RemoveAllListeners();
-            mainMenuButton.onClick.AddListener(GoToMainMenu);
-        }
+        DontDestroyOnLoad(gameObject);
     }
+
+    void OnEnable()  => SceneManager.sceneLoaded += HandleSceneLoaded;
+    void OnDisable() => SceneManager.sceneLoaded -= HandleSceneLoaded;
 
     void Start()
     {
-        if (!playerHealth)
-        {
-            var p = GameObject.FindWithTag("Player");
-            if (p) playerHealth = p.GetComponentInChildren<PlayerHealth>();
-        }
-        if (playerHealth != null) playerHealth.OnDied += HandlePlayerDeath;
-        if (GameManager.Instance != null) GameManager.Instance.OnStateChanged += HandleStateChanged;
+        if (SceneManager.GetActiveScene().name == gameplaySceneName) Arm();
+        else Disarm();
     }
 
-    void OnDestroy()
+    void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == gameplaySceneName) Arm();
+        else Disarm();
+    }
+
+    void Arm()
+    {
+        // Resetea el flag al volver a entrar a gameplay (permite morir de nuevo en otra run).
+        isDefeated = false;
+
+        var p = GameObject.FindGameObjectWithTag("Player");
+        playerHealth = p != null ? p.GetComponentInChildren<PlayerHealth>() : null;
+        if (playerHealth != null)
+        {
+            playerHealth.OnDied -= HandlePlayerDeath;
+            playerHealth.OnDied += HandlePlayerDeath;
+        }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnStateChanged -= HandleStateChanged;
+            GameManager.Instance.OnStateChanged += HandleStateChanged;
+        }
+
+        armed = true;
+    }
+
+    void Disarm()
     {
         if (playerHealth != null) playerHealth.OnDied -= HandlePlayerDeath;
         if (GameManager.Instance != null) GameManager.Instance.OnStateChanged -= HandleStateChanged;
+        playerHealth = null;
+        armed = false;
+        isDefeated = false;
     }
 
-    void HandlePlayerDeath() => TriggerDefeat(subtitleDeathText);
+    void HandlePlayerDeath() => TriggerDefeat();
 
     void HandleStateChanged(GameState s)
     {
-        // GameManager dispara GameOver cuando el temporizador llega a 0.
-        if (s == GameState.GameOver) TriggerDefeat(subtitleTimerText);
+        if (s == GameState.GameOver) TriggerDefeat();
     }
 
-    public void TriggerDefeat(string reason = "")
+    /// <summary>Carga SCN_DeathScene con fade. Idempotente.</summary>
+    public void TriggerDefeat()
     {
-        if (isDefeated) return;
+        if (isDefeated || !armed) return;
         isDefeated = true;
 
-        Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        Time.timeScale = 1f;
 
         AudioManager.Instance?.PlayMusic(MusicId.GameOver);
-
-        if (defeatTitleLabel)    defeatTitleLabel.text = titleText;
-        if (defeatSubtitleLabel) defeatSubtitleLabel.text = reason;
-        if (mainMenuButton)      mainMenuButton.gameObject.SetActive(true);
-
-        if (defeatCanvasGroup)
-        {
-            defeatCanvasGroup.blocksRaycasts = true;
-            defeatCanvasGroup.interactable = true;
-            StartCoroutine(FadeInGroup(defeatCanvasGroup, fadeInTime));
-        }
-    }
-
-    IEnumerator FadeInGroup(CanvasGroup g, float t)
-    {
-        float e = 0f;
-        while (e < t)
-        {
-            e += Time.unscaledDeltaTime;
-            g.alpha = Mathf.Clamp01(e / t);
-            yield return null;
-        }
-        g.alpha = 1f;
-    }
-
-    public void GoToMainMenu()
-    {
-        Time.timeScale = 1f;
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-        SceneManager.LoadScene(mainMenuSceneName);
+        SceneTransition.EnsureInstance()?.FadeAndLoad(deathSceneName, fadeTime);
     }
 }
