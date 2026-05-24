@@ -1,9 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// Reproduce sonidos de "ojo" (EyeProximity / EyeViscous / EyeZoom) en el AudioSource
-/// dedicado mano/ojo del jugador, basándose en la cercanía y línea de visión hacia el
-/// enemigo. Pensado para colgarlo del Player.
+/// Reproduce indicios de "ojo" basados en la cercanía al enemigo:
+///  - EyeViscous: a BAJO volumen, sobre el AudioSource de la mano del player.
+///  - EyeZoom: cuando hay línea de visión directa con el enemigo.
+/// EyeProximity ha sido descartado.
 /// </summary>
 public class EyeProximityCue : MonoBehaviour
 {
@@ -19,10 +20,9 @@ public class EyeProximityCue : MonoBehaviour
     [SerializeField] float minInterval = 2.5f;
     [SerializeField] float maxInterval = 7f;
 
-    [Header("Clips locales")]
-    [SerializeField] AudioClip[] proximityClips;
-    [SerializeField] AudioClip[] viscousClips;
-    [SerializeField] AudioClip[] zoomClips;
+    [Header("Volumen EyeViscous")]
+    [Range(0f, 1f)][SerializeField] float viscousBaseVolume = 0.25f;
+    [Range(0f, 1f)][SerializeField] float viscousMaxVolume = 0.5f;
 
     float timer;
 
@@ -50,19 +50,9 @@ public class EyeProximityCue : MonoBehaviour
         float closeness = Mathf.InverseLerp(proximityFar, proximityNear, dist); // 0..1
         timer = Mathf.Lerp(maxInterval, minInterval, closeness);
 
-        AudioClip[] pool;
-        if (enemyDetection != null && enemyDetection.HasLineOfSight && zoomClips != null && zoomClips.Length > 0)
-            pool = zoomClips;
-        else if (closeness > 0.6f && viscousClips != null && viscousClips.Length > 0)
-            pool = viscousClips;
-        else if (proximityClips != null && proximityClips.Length > 0)
-            pool = proximityClips;
-        else
-            return;
-
-        var clip = pool[Random.Range(0, pool.Length)];
-        if (clip == null) return;
-        handEyeSource.pitch = Random.Range(0.95f, 1.05f);
-        handEyeSource.PlayOneShot(clip, 0.6f + 0.4f * closeness);
+        bool hasLoS = enemyDetection != null && enemyDetection.HasLineOfSight;
+        SFXId id = hasLoS ? SFXId.EyeZoom : SFXId.EyeViscous;
+        float vol = hasLoS ? 1f : Mathf.Lerp(viscousBaseVolume, viscousMaxVolume, closeness);
+        AudioManager.Instance?.PlaySFXVariant(id, 0, transform.position, vol, handEyeSource);
     }
 }

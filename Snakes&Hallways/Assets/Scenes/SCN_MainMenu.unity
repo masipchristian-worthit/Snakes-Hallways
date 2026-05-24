@@ -628,7 +628,6 @@ GameObject:
   - component: {fileID: 1515806124}
   - component: {fileID: 1515806123}
   - component: {fileID: 1515806122}
-  - component: {fileID: 1515806121}
   m_Layer: 5
   m_Name: UI_MainMenu
   m_TagString: Untagged
@@ -636,41 +635,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1515806121
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1515806120}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 65a579516dbcf1f488f67efa9f6256b8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UIManager
-  pauseGroup: {fileID: 0}
-  pauseDissolveImage: {fileID: 0}
-  resumeBtn: {fileID: 0}
-  optionsBtn: {fileID: 0}
-  mainMenuBtn: {fileID: 0}
-  quitBtn: {fileID: 0}
-  closeBtn: {fileID: 0}
-  mainMenuScene: MainMenu
-  dissolveShader: {fileID: 0}
-  noiseTexture: {fileID: 0}
-  proceduralNoiseSize: 256
-  dissolveTint: {r: 0, g: 0, b: 0, a: 0.85}
-  edgeColor: {r: 1, g: 0.45, b: 0.1, a: 1}
-  edgeWidth: 0.08
-  edgeIntensity: 1.8
-  dissolveTime: 0.45
-  hudPanel: {fileID: 0}
-  pickupCountText: {fileID: 0}
-  timerText: {fileID: 0}
-  minimapImage: {fileID: 0}
-  slideTime: 0.3
-  panelOffscreenX: -600
-  panelOnscreenX: 0
 --- !u!114 &1515806122
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -891,6 +855,39 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d7afa26b45679944189dd694987e202d, type: 3}
+--- !u!1 &1713503574 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1396442846520584268, guid: 3c99ac987f4931e43b0c1532b817feb5, type: 3}
+  m_PrefabInstance: {fileID: 4414984331056875004}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1713503577
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1713503574}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e52b8c7d35db144da1aad6f635f4724, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SceneMusicController
+  mapping:
+  - sceneName: SCN_MainMenu
+    music: 1
+  - sceneName: SCN_Settings
+    music: 1
+  - sceneName: SCN_Difficulty
+    music: 1
+  - sceneName: SCN_Introduction
+    music: 2
+  - sceneName: SCN_Labe
+    music: 2
+  - sceneName: SCN_DeathScene
+    music: 4
+  - sceneName: SCN_EndingScene
+    music: 5
+  fadeIn: 1.5
 --- !u!1001 &2078379286
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1233,6 +1230,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: AudioManager
       objectReference: {fileID: 0}
+    - target: {fileID: 3504169572375674169, guid: 3c99ac987f4931e43b0c1532b817feb5, type: 3}
+      propertyPath: sfxGroup
+      value: 
+      objectReference: {fileID: 24300002, guid: 9dcc0e84cbccc9a4fa4989259570fef7, type: 2}
+    - target: {fileID: 3504169572375674169, guid: 3c99ac987f4931e43b0c1532b817feb5, type: 3}
+      propertyPath: musicGroup
+      value: 
+      objectReference: {fileID: 24300002, guid: 1897553a603f88d47b7781c268ed536d, type: 2}
     - target: {fileID: 6001441901013674092, guid: 3c99ac987f4931e43b0c1532b817feb5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 538.4488
@@ -1276,7 +1281,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1396442846520584268, guid: 3c99ac987f4931e43b0c1532b817feb5, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1713503577}
   m_SourcePrefab: {fileID: 100100000, guid: 3c99ac987f4931e43b0c1532b817feb5, type: 3}
 --- !u!1001 &4756549168368429795
 PrefabInstance:

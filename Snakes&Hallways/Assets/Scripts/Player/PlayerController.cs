@@ -148,15 +148,18 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float stepIntervalCrouch = 0.75f;
 
     [Header("Audio Sources (locales del player)")]
-    [Tooltip("AudioSource dedicado a los pasos. Si está vacío se crea uno en Awake.")]
+    [Tooltip("AudioSource de los PIES (PlayerStepStone alternado). Si está vacío se crea uno en Awake.")]
     [SerializeField] AudioSource stepsSource;
-    [Tooltip("AudioSource dedicado a los sonidos de mano/ojo. Si está vacío se crea uno en Awake.")]
+    [Tooltip("AudioSource de la MANO (respiración loopeada + EyeViscous). Si está vacío se crea uno en Awake.")]
     [SerializeField] AudioSource handEyeSource;
 
-    [Header("Clips locales (opcionales)")]
-    [SerializeField] AudioClip[] stepClipsStone;
-    [SerializeField] AudioClip[] handDrawClips;
-    [SerializeField] AudioClip[] handStoreClips;
+    [Header("Respiración (sprint)")]
+    [Tooltip("Tiempo de fade-in al empezar a correr.")]
+    [SerializeField] float breathFadeIn = 0.4f;
+    [Tooltip("Tiempo de fade-out al dejar de correr.")]
+    [SerializeField] float breathFadeOut = 0.8f;
+    [Tooltip("Multiplicador de volumen aplicado al loop de respiración.")]
+    [Range(0f, 1f)][SerializeField] float breathVolume = 1f;
     #endregion
 
     #region Inspector — Hand
@@ -185,7 +188,9 @@ public class PlayerController : MonoBehaviour
     float bobTimer;
 
     float stepTimer;
+    int stepVariantToggle; // alterna PlayerStepStone (0) / PlayerStepStone2 (1)
     bool wasGrounded;
+    bool breathLoopActive;
 
     float colliderInitialCenterY;
 
@@ -257,15 +262,6 @@ public class PlayerController : MonoBehaviour
             handEyeSource.playOnAwake = false;
             handEyeSource.spatialBlend = 0.5f;
         }
-    }
-
-    void PlayRandomOn(AudioSource src, AudioClip[] clips, float volMul = 1f)
-    {
-        if (src == null || clips == null || clips.Length == 0) return;
-        var clip = clips[Random.Range(0, clips.Length)];
-        if (clip == null) return;
-        src.pitch = Random.Range(0.95f, 1.05f);
-        src.PlayOneShot(clip, volMul);
     }
 
     void Start()
@@ -423,12 +419,24 @@ public class PlayerController : MonoBehaviour
                 stamina = 0f;
                 IsSprinting = false;
                 staminaCooldownTimer = staminaCooldownAfterEmpty;
-                AudioManager.Instance?.PlaySFX(SFXId.PlayerBreathHard, transform.position);
             }
         }
         else
         {
             stamina = Mathf.Min(maxStamina, stamina + staminaRegenRate * Time.deltaTime);
+        }
+
+        // Loop de respiración: ON cuando se está esprintando y moviendo, OFF si no.
+        bool wantsBreath = IsSprinting && IsMoving;
+        if (wantsBreath && !breathLoopActive)
+        {
+            AudioManager.Instance?.StartLoop(SFXId.PlayerBreath, handEyeSource, breathFadeIn, breathVolume, spatial: false);
+            breathLoopActive = true;
+        }
+        else if (!wantsBreath && breathLoopActive)
+        {
+            AudioManager.Instance?.StopLoop(handEyeSource, breathFadeOut);
+            breathLoopActive = false;
         }
     }
 
@@ -522,10 +530,10 @@ public class PlayerController : MonoBehaviour
         {
             stepTimer = 0f;
             float vol = IsCrouching ? 0.3f : 1f;
-            if (stepClipsStone != null && stepClipsStone.Length > 0)
-                PlayRandomOn(stepsSource, stepClipsStone, vol);
-            else
-                AudioManager.Instance?.PlaySFX(SFXId.PlayerStepStone, transform.position, vol);
+            // Alterna entre las dos variantes (PlayerStepStone / PlayerStepStone2)
+            // reproducidas sobre el AudioSource dedicado a los pies.
+            AudioManager.Instance?.PlaySFXVariant(SFXId.PlayerStepStone, stepVariantToggle, transform.position, vol, stepsSource);
+            stepVariantToggle = 1 - stepVariantToggle;
             EnemyDetection.NotifyNoise(transform.position, IsSprinting ? 1f : (IsCrouching ? 0.15f : 0.5f));
         }
     }
@@ -550,15 +558,13 @@ public class PlayerController : MonoBehaviour
     {
         StartCoroutine(FireTrigger(HashDraw));
         HandDrawn = true;
-        if (handDrawClips != null && handDrawClips.Length > 0) PlayRandomOn(handEyeSource, handDrawClips);
-        else AudioManager.Instance?.PlaySFX(SFXId.HandDraw, transform.position);
+        // HandDraw SFX descartado.
     }
     public void StoreWeapon()
     {
         StartCoroutine(FireTrigger(HashReverseDraw));
         HandDrawn = false;
-        if (handStoreClips != null && handStoreClips.Length > 0) PlayRandomOn(handEyeSource, handStoreClips);
-        else AudioManager.Instance?.PlaySFX(SFXId.HandStore, transform.position);
+        // HandStore SFX descartado.
     }
     public void ToggleHand()
     {
@@ -621,7 +627,7 @@ public class PlayerController : MonoBehaviour
         if (!ctx.performed) return;
         IsCrouching = !IsCrouching;
         if (IsCrouching) IsSprinting = false;
-        AudioManager.Instance?.PlaySFX(SFXId.PlayerCrouch, transform.position);
+        // PlayerCrouch SFX descartado.
     }
     public void OnSprint(InputAction.CallbackContext ctx)
     {

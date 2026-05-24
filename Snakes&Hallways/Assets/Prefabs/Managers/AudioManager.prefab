@@ -44,8 +44,155 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e1c5699aa1d8ba4690d8c55ca6c2b52, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  autoBootstrapFromResources: 1
   sfxGroup: {fileID: 0}
   musicGroup: {fileID: 0}
-  sfxLibrary: []
-  musicLibrary: []
+  sfxFolder: Audio/SFX
+  musicFolder: Audio/Music
+  autoScanInEditor: 1
+  sfxLibrary:
+  - id: 1
+    variants:
+    - {fileID: 8300000, guid: bc11e5757edf57b4680545002f8e7079, type: 3}
+    - {fileID: 8300000, guid: 16e5820473fdfd2438a5bf358c57dbad, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 2
+    variants:
+    - {fileID: 8300000, guid: a260648b770d485479f891e978cbd17e, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 4
+    variants:
+    - {fileID: 8300000, guid: 236b6b047d69785449f3f888e87c74a7, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 6
+    variants:
+    - {fileID: 8300000, guid: b5c99ac2c548c304fbe0175cea7ad786, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 9
+    variants:
+    - {fileID: 8300000, guid: 0560d808a6627bc4795760f2e234b168, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 11
+    variants:
+    - {fileID: 8300000, guid: c2844bfdb56bd884c90918adfb9ce177, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 12
+    variants:
+    - {fileID: 8300000, guid: 4e7da53d3af2e2e4babff59b9cea5e45, type: 3}
+    - {fileID: 8300000, guid: 9383b4062d8d2ce41bf1ca6a6ad6e94d, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 13
+    variants:
+    - {fileID: 8300000, guid: 919c16c479d70d647a0dee567029d2ef, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 16
+    variants:
+    - {fileID: 8300000, guid: 917a5fcca6d4fd345a17158c8d4a5563, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 17
+    variants:
+    - {fileID: 8300000, guid: b765dcf4486c3ae4393897a0160ee39b, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 18
+    variants:
+    - {fileID: 8300000, guid: f83dad377ec8cbd4a9968f6936587a70, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 19
+    variants:
+    - {fileID: 8300000, guid: e4a6d07a234fa2a49a6548406d0ca508, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 20
+    variants:
+    - {fileID: 8300000, guid: cc002e3b414784d438c9cd1154ae22a1, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 21
+    variants:
+    - {fileID: 8300000, guid: 688fa4d6a94698f4fbc512bb233a3954, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 22
+    variants:
+    - {fileID: 8300000, guid: d81e970925121aa4bb8f1e85ee020974, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 23
+    variants:
+    - {fileID: 8300000, guid: bc39db0d28321094293d53c1c537c9e9, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 24
+    variants:
+    - {fileID: 8300000, guid: dd9ffece133eff04581b2d32fb026e68, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 25
+    variants:
+    - {fileID: 8300000, guid: d8207ae0f9e99db499d55f35e86b8bea, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 26
+    variants:
+    - {fileID: 8300000, guid: 562f287be8d679a4fbc8536f123f5d9c, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 27
+    variants:
+    - {fileID: 8300000, guid: 5c3a3dc10a2d75e419a15722b51b379d, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 28
+    variants:
+    - {fileID: 8300000, guid: dc13f39c6e6bc4c49ab56fae2c5a3256, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  musicLibrary:
+  - id: 1
+    clip: {fileID: 8300000, guid: 86ea5a1a545ae4343b0f21f64489c795, type: 3}
+    volume: 0.7
+  - id: 2
+    clip: {fileID: 8300000, guid: 21bdc9fc95e7d1d478e5a121545c6cb2, type: 3}
+    volume: 0.7
+  - id: 3
+    clip: {fileID: 8300000, guid: e1df3dfcd623de241ae79395c87b57d2, type: 3}
+    volume: 0.7
+  - id: 5
+    clip: {fileID: 8300000, guid: 4fc3e18d9185847499bece75f9a7138f, type: 3}
+    volume: 0.7
+  - id: 6
+    clip: {fileID: 8300000, guid: b391a823f2c4d3545ba1e806bfd575c3, type: 3}
+    volume: 0.7
   sfxPoolSize: 16

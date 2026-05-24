@@ -62,6 +62,11 @@ public class DialogueSequence : MonoBehaviour
     [SerializeField] bool skipBeepOnPunctuation = true;
     [SerializeField, Range(0f, 1f)] float beepVolume = 0.6f;
 
+    [Header("SFX avance")]
+    [Tooltip("SFX al hacer click/skip para completar una línea o avanzar a la siguiente.")]
+    [SerializeField] SFXId advanceSfx = SFXId.UISelect;
+    [SerializeField, Range(0f, 1f)] float advanceVolume = 1f;
+
     [Header("Inicio")]
     [SerializeField] bool playOnStart = true;
     [SerializeField] float startDelay = 0.25f;
@@ -101,8 +106,17 @@ public class DialogueSequence : MonoBehaviour
         if (Time.unscaledTime < inputUnlockTime) return;
         if (!ConsumeAdvanceInput()) return;
 
-        if (isTyping) CompleteLineInstantly();
-        else AdvanceLine();
+        if (isTyping)
+        {
+            // Skip de la línea actual: NO suena accept (solo se está acelerando el typewriter).
+            CompleteLineInstantly();
+        }
+        else
+        {
+            // Avance real a la siguiente línea: aquí sí suena accept.
+            AudioManager.Instance?.PlaySFX2D(advanceSfx, advanceVolume);
+            AdvanceLine();
+        }
     }
 
     bool ConsumeAdvanceInput()

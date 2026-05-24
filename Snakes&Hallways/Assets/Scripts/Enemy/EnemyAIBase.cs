@@ -60,6 +60,18 @@ public class EnemyAIBase : MonoBehaviour
     [SerializeField] EnemyAnimator enemyAnim;
     [SerializeField] EnemyDetection detection;
 
+    [Header("Audio")]
+    [Tooltip("AudioSource dedicado del minotauro (pisadas + idle breath). Si está vacío se intenta autoresolver.")]
+    [SerializeField] AudioSource minotaurSource;
+    [Tooltip("Fade-in del loop MinotaurIdleBreath al entrar a Idle/Patrol.")]
+    [SerializeField] float idleBreathFadeIn = 0.6f;
+    [Tooltip("Fade-out del loop MinotaurIdleBreath al salir a Chase/Attacking.")]
+    [SerializeField] float idleBreathFadeOut = 0.6f;
+    [Tooltip("Volumen del loop respiración idle.")]
+    [Range(0f, 1f)][SerializeField] float idleBreathVolume = 1f;
+
+    bool idleBreathActive;
+
     public State CurrentState { get; private set; } = State.Patrol;
     public NavMeshAgent Agent { get; private set; }
     public Vector3? KnownPlayerPos { get; private set; }
@@ -70,7 +82,6 @@ public class EnemyAIBase : MonoBehaviour
     float patrolWaitTimer;
     Vector3? investigatePoint;
     float investigateTimer;
-    float idleSfxTimer;
     Vector3 currentWanderTarget;
     bool hasWanderTarget;
     float chaseMemoryTimer;          // cuenta atrás de "recuerdo" tras perder LoS
@@ -82,6 +93,19 @@ public class EnemyAIBase : MonoBehaviour
         Agent = GetComponent<NavMeshAgent>();
         if (!enemyAnim) enemyAnim = GetComponent<EnemyAnimator>();
         if (!detection) detection = GetComponent<EnemyDetection>();
+        if (!minotaurSource)
+        {
+            // Busca un AudioSource propio o crea uno dedicado.
+            minotaurSource = GetComponent<AudioSource>();
+            if (!minotaurSource)
+            {
+                var go = new GameObject("AS_Minotaur");
+                go.transform.SetParent(transform, false);
+                minotaurSource = go.AddComponent<AudioSource>();
+                minotaurSource.playOnAwake = false;
+                minotaurSource.spatialBlend = 1f;
+            }
+        }
     }
 
     void OnEnable() { EnemyDetection.NoiseHeard += OnNoise; }
@@ -180,7 +204,7 @@ public class EnemyAIBase : MonoBehaviour
                     var diff = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings().chaseSpeedMul : 1f;
                     Agent.speed = chaseSpeed * diff;
                     Agent.isStopped = false;
-                    AudioManager.Instance?.PlaySFX(SFXId.MinotaurDetect, transform.position);
+                    // MinotaurDetect SFX descartado.
                     AudioManager.Instance?.PlayMusic(MusicId.Chase);
                     break;
                 }
@@ -211,12 +235,23 @@ public class EnemyAIBase : MonoBehaviour
     #region State Ticks
     void TickIdleSounds()
     {
-        idleSfxTimer -= Time.deltaTime;
-        if (idleSfxTimer <= 0f)
+        // MinotaurIdleBreath ahora es un LOOP gestionado por estado.
+        // ON cuando está Idle / Patrol / Investigate (animaciones idle+walk).
+        // OFF cuando entra a Alert / Chase / Attacking / Stunned.
+        bool wantsIdleBreath =
+            CurrentState == State.Idle ||
+            CurrentState == State.Patrol ||
+            CurrentState == State.Investigate;
+
+        if (wantsIdleBreath && !idleBreathActive)
         {
-            idleSfxTimer = Random.Range(6f, 12f);
-            if (CurrentState == State.Patrol || CurrentState == State.Idle)
-                AudioManager.Instance?.PlaySFX(SFXId.MinotaurIdleBreath, transform.position);
+            AudioManager.Instance?.StartLoop(SFXId.MinotaurIdleBreath, minotaurSource, idleBreathFadeIn, idleBreathVolume, spatial: true);
+            idleBreathActive = true;
+        }
+        else if (!wantsIdleBreath && idleBreathActive)
+        {
+            AudioManager.Instance?.StopLoop(minotaurSource, idleBreathFadeOut);
+            idleBreathActive = false;
         }
     }
 
