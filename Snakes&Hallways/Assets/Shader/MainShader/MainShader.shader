@@ -47,12 +47,25 @@ Shader "Custom/MainShader"
                       _FakeAOContrast          ("Fake AO Contrast",            Range(0.1,4)) = 1.5
                       _FakeAOTint              ("Fake AO Tint",                Color)        = (0,0,0,1)
 
-        [Header(Distance Driven Intensity)]
-                      _ViewMinDistance         ("View Min Distance m",         Float)        = 2.0
-                      _ViewMaxDistance         ("View Max Distance m",         Float)        = 18.0
-                      _AONearStrength          ("AO Near Multiplier",          Range(0,2))   = 0.0
-                      _AOFarStrength           ("AO Far Multiplier",           Range(0,2))   = 1.0
-                      _AOFalloffPower          ("AO Falloff Power",            Range(0.1,8)) = 2.5
+        [Header(Three Level Distance System)]
+                      _Level1Distance          ("Level 1 End Base m",          Float)        = 3.0
+                      _Level2Distance          ("Level 2 End Intermediate m",  Float)        = 8.0
+                      _LevelBlend              ("Level Transition Blend m",    Range(0.1,5)) = 1.5
+
+        [Header(AO Per Level Multipliers)]
+                      _AOLevel1Mul             ("AO Base 0 to L1",             Range(0,3))   = 0.6
+                      _AOLevel2Mul             ("AO Intermediate L1 to L2",    Range(0,5))   = 1.8
+                      _AOLevel3Mul             ("AO Total L2 plus",            Range(0,8))   = 4.0
+
+        [Header(Dither Per Level Multipliers)]
+                      _DitherLevel1Mul         ("Dither Base",                 Range(0,3))   = 1.0
+                      _DitherLevel2Mul         ("Dither Intermediate",         Range(0,3))   = 1.7
+                      _DitherLevel3Mul         ("Dither Total",                Range(0,4))   = 2.6
+
+        [Header(Shader Fog Level 3)]
+                      _Level3FogStrength       ("Fog Strength at Total",       Range(0,1))   = 0.85
+                      _Level3FogColor          ("Fog Color",                   Color)        = (0.02,0.02,0.02,1)
+                      _Level3FogStart          ("Fog Start Offset m",          Float)        = 0.0
 
         [Header(Shadow Accumulation)]
                       _ShadowAOBoost           ("Shadow AO Boost",             Range(1,5))   = 1.5
@@ -152,11 +165,18 @@ Shader "Custom/MainShader"
                 float  _FakeAOContrast;
                 float4 _FakeAOTint;
 
-                float  _ViewMinDistance;
-                float  _ViewMaxDistance;
-                float  _AONearStrength;
-                float  _AOFarStrength;
-                float  _AOFalloffPower;
+                float  _Level1Distance;
+                float  _Level2Distance;
+                float  _LevelBlend;
+                float  _AOLevel1Mul;
+                float  _AOLevel2Mul;
+                float  _AOLevel3Mul;
+                float  _DitherLevel1Mul;
+                float  _DitherLevel2Mul;
+                float  _DitherLevel3Mul;
+                float  _Level3FogStrength;
+                float4 _Level3FogColor;
+                float  _Level3FogStart;
 
                 float  _ShadowAOBoost;
                 float  _ShadowAOThreshold;
@@ -369,26 +389,35 @@ Shader "Custom/MainShader"
 
                 float aoRaw = pow(saturate(normCurv + depthEdge), _FakeAOContrast);
 
-                // --- Distance ramp: closer to ViewMax = stronger AO ---
-                //   Apply a falloff power so AO stays near-zero until close
-                //   to ViewMaxDistance. With power 2.5, at 50% of the range
-                //   we are only at 0.18 strength, so visibility is preserved.
-                float distT   = saturate((camDist - _ViewMinDistance) /
-                                          max(_ViewMaxDistance - _ViewMinDistance, 0.01));
-                distT         = pow(distT, max(_AOFalloffPower, 0.01));
-                float distMul = lerp(_AONearStrength, _AOFarStrength, distT);
+                // ============================================================
+                // THREE LEVEL DISTANCE SYSTEM
+                //   Level 1 (0 .. L1End)        : Base subtle AO, light dither.
+                //   Level 2 (L1End .. L2End)    : Intermediate AO amplified.
+                //   Level 3 (L2End ..)          : Total - heavy AO + fog.
+                //   Smoothstep transitions so gradients are most felt right
+                //   before crossing into the next level (per user request).
+                // ============================================================
+                float blend = max(_LevelBlend, 0.01);
+                float t12 = smoothstep(_Level1Distance - blend, _Level1Distance + blend, camDist);
+                float t23 = smoothstep(_Level2Distance - blend, _Level2Distance + blend, camDist);
 
-                // --- Shadow accumulation: dark areas eat more AO ---
+                // Per-level multipliers, smoothly blended.
+                float aoLevelMul     = lerp(_AOLevel1Mul,
+                                            lerp(_AOLevel2Mul, _AOLevel3Mul, t23), t12);
+                float ditherLevelMul = lerp(_DitherLevel1Mul,
+                                            lerp(_DitherLevel2Mul, _DitherLevel3Mul, t23), t12);
+
+                // Shadow accumulation: dark areas eat more AO.
                 float luma       = dot(color.rgb, float3(0.299, 0.587, 0.114));
                 float shadowMask = 1.0 - smoothstep(0.0, _ShadowAOThreshold, luma);
                 float shadowMul  = lerp(1.0, _ShadowAOBoost, shadowMask);
 
-                float ao = aoRaw * _FakeAOStrength * distMul * shadowMul;
+                float ao = aoRaw * _FakeAOStrength * aoLevelMul * shadowMul;
 
-                // --- Bayer dither the AO mask ---
+                // --- Bayer dither the AO mask (scaled by level) ---
                 uint2 pixCoord = uint2(IN.positionCS.xy / max(_DitherScale, 1.0));
                 float bayer    = Bayer8x8(pixCoord);
-                ao = saturate(ao + (bayer - 0.5) * _DitherStrength);
+                ao = saturate(ao + (bayer - 0.5) * _DitherStrength * ditherLevelMul);
 
                 // --- Apply darkening to lighting (preserve emission) ---
                 {
@@ -398,13 +427,13 @@ Shader "Custom/MainShader"
                 }
 
                 // ============================================================
-                // HIGHLIGHT GRANULATION
+                // HIGHLIGHT GRANULATION (scaled by per-level dither multiplier)
                 //   Dithers bright pixels (light highlights) for PSX feel.
                 // ============================================================
                 {
                     float litLuma = dot(color.rgb, float3(0.299, 0.587, 0.114));
                     float hMask   = saturate((litLuma - _HighlightThreshold) * 2.0);
-                    float hD      = (bayer - 0.5) * _HighlightDither * hMask;
+                    float hD      = (bayer - 0.5) * _HighlightDither * hMask * ditherLevelMul;
                     color.rgb = saturate(color.rgb + hD);
                 }
 
@@ -455,6 +484,22 @@ Shader "Custom/MainShader"
                     float3 liftCol = sd.albedo * _AmbientLiftTint.rgb *
                                      (_AmbientLift * liftFade);
                     color.rgb = max(color.rgb, liftCol);
+                }
+
+                // ============================================================
+                // LEVEL 3 SHADER FOG  (everything becomes indistinguishable)
+                //   Smooth fog that ramps up entering the Total level (L2+).
+                //   Independent of URP fog so it can dominate without
+                //   touching the rest of the scene.
+                //   Mixed BEFORE URP MixFog so URP fog adds on top if active.
+                // ============================================================
+                if (_Level3FogStrength > 0.0)
+                {
+                    float fogT = saturate((camDist - (_Level2Distance + _Level3FogStart)) /
+                                          max(_LevelBlend * 3.0, 0.01));
+                    fogT = smoothstep(0.0, 1.0, fogT);
+                    color.rgb = lerp(color.rgb, _Level3FogColor.rgb,
+                                     fogT * _Level3FogStrength);
                 }
 
                 color.rgb = MixFog(color.rgb, IN.fogFactor);

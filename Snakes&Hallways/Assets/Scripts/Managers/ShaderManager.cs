@@ -49,15 +49,33 @@ public class ShaderManager : MonoBehaviour
     [Range(0f, 10f)] public float fakeAONormalSensitivity = 2.5f;
     [Range(0f, 10f)] public float fakeAODepthSensitivity  = 1.0f;
 
-    [Header("Distance Driven Intensity")]
-    [Tooltip("Below this distance the AO is at near strength (default 0 = invisible).")]
-    public float viewMinDistance = 2.0f;
-    [Tooltip("At this distance the AO reaches far strength (full darkening). Lower = AO kicks in sooner.")]
-    public float viewMaxDistance = 18.0f;
-    [Range(0f, 2f)] public float aoNearStrength = 0.0f;
-    [Range(0f, 2f)] public float aoFarStrength  = 1.0f;
-    [Tooltip("Power curve for the distance ramp. Higher = AO stays invisible longer, kicks in sharply at max distance.")]
-    [Range(0.1f, 8f)] public float aoFalloffPower = 2.5f;
+    [Header("Three Level Distance System")]
+    [Tooltip("End of Base level (0..L1). Inside this range AO is at Level 1 multiplier.")]
+    public float level1Distance = 3.0f;
+    [Tooltip("End of Intermediate level (L1..L2). After this, Level 3 (Total) takes over.")]
+    public float level2Distance = 8.0f;
+    [Tooltip("Softness of transitions between levels (meters). Larger = smoother gradients near boundary.")]
+    [Range(0.1f, 5f)] public float levelBlend = 1.5f;
+
+    [Header("AO Per Level Multipliers")]
+    [Tooltip("AO multiplier at Base level (0..L1). Subtle.")]
+    [Range(0f, 3f)] public float aoLevel1Mul = 0.6f;
+    [Tooltip("AO multiplier at Intermediate level (L1..L2). Amplified.")]
+    [Range(0f, 5f)] public float aoLevel2Mul = 1.8f;
+    [Tooltip("AO multiplier at Total level (L2+). Heavy.")]
+    [Range(0f, 8f)] public float aoLevel3Mul = 4.0f;
+
+    [Header("Dither Per Level Multipliers")]
+    [Range(0f, 3f)] public float ditherLevel1Mul = 1.0f;
+    [Range(0f, 3f)] public float ditherLevel2Mul = 1.7f;
+    [Range(0f, 4f)] public float ditherLevel3Mul = 2.6f;
+
+    [Header("Level 3 Shader Fog")]
+    [Tooltip("Strength of the fog that kicks in at the Total level. 1 = fully fades to fog color.")]
+    [Range(0f, 1f)] public float level3FogStrength = 0.85f;
+    public Color    level3FogColor   = new Color(0.02f, 0.02f, 0.02f, 1f);
+    [Tooltip("Distance offset (m) past Level 2 where the fog actually starts ramping up.")]
+    public float    level3FogStart   = 0.0f;
 
     [Header("Shadow Accumulation")]
     [Range(1f, 5f)] public float shadowAOBoost     = 1.5f;
@@ -100,11 +118,18 @@ public class ShaderManager : MonoBehaviour
     private static readonly int ID_FakeAOStrength           = Shader.PropertyToID("_FakeAOStrength");
     private static readonly int ID_FakeAONormalSensitivity  = Shader.PropertyToID("_FakeAONormalSensitivity");
     private static readonly int ID_FakeAODepthSensitivity   = Shader.PropertyToID("_FakeAODepthSensitivity");
-    private static readonly int ID_ViewMinDistance          = Shader.PropertyToID("_ViewMinDistance");
-    private static readonly int ID_ViewMaxDistance          = Shader.PropertyToID("_ViewMaxDistance");
-    private static readonly int ID_AONearStrength           = Shader.PropertyToID("_AONearStrength");
-    private static readonly int ID_AOFarStrength            = Shader.PropertyToID("_AOFarStrength");
-    private static readonly int ID_AOFalloffPower           = Shader.PropertyToID("_AOFalloffPower");
+    private static readonly int ID_Level1Distance           = Shader.PropertyToID("_Level1Distance");
+    private static readonly int ID_Level2Distance           = Shader.PropertyToID("_Level2Distance");
+    private static readonly int ID_LevelBlend               = Shader.PropertyToID("_LevelBlend");
+    private static readonly int ID_AOLevel1Mul              = Shader.PropertyToID("_AOLevel1Mul");
+    private static readonly int ID_AOLevel2Mul              = Shader.PropertyToID("_AOLevel2Mul");
+    private static readonly int ID_AOLevel3Mul              = Shader.PropertyToID("_AOLevel3Mul");
+    private static readonly int ID_DitherLevel1Mul          = Shader.PropertyToID("_DitherLevel1Mul");
+    private static readonly int ID_DitherLevel2Mul          = Shader.PropertyToID("_DitherLevel2Mul");
+    private static readonly int ID_DitherLevel3Mul          = Shader.PropertyToID("_DitherLevel3Mul");
+    private static readonly int ID_Level3FogStrength        = Shader.PropertyToID("_Level3FogStrength");
+    private static readonly int ID_Level3FogColor           = Shader.PropertyToID("_Level3FogColor");
+    private static readonly int ID_Level3FogStart           = Shader.PropertyToID("_Level3FogStart");
     private static readonly int ID_ShadowAOBoost            = Shader.PropertyToID("_ShadowAOBoost");
     private static readonly int ID_ShadowAOThreshold        = Shader.PropertyToID("_ShadowAOThreshold");
     private static readonly int ID_DitherStrength           = Shader.PropertyToID("_DitherStrength");
@@ -181,11 +206,19 @@ public class ShaderManager : MonoBehaviour
             m.SetFloat(ID_FakeAOStrength,          effFakeAO);
             m.SetFloat(ID_FakeAONormalSensitivity, fakeAONormalSensitivity);
             m.SetFloat(ID_FakeAODepthSensitivity,  fakeAODepthSensitivity);
-            m.SetFloat(ID_ViewMinDistance,         viewMinDistance);
-            m.SetFloat(ID_ViewMaxDistance,         viewMaxDistance);
-            m.SetFloat(ID_AONearStrength,          aoNearStrength);
-            m.SetFloat(ID_AOFarStrength,           aoFarStrength);
-            m.SetFloat(ID_AOFalloffPower,          aoFalloffPower);
+            // Three-level distance system (replaces old linear ramp)
+            m.SetFloat(ID_Level1Distance,          level1Distance);
+            m.SetFloat(ID_Level2Distance,          level2Distance);
+            m.SetFloat(ID_LevelBlend,              levelBlend);
+            m.SetFloat(ID_AOLevel1Mul,             aoLevel1Mul * v);
+            m.SetFloat(ID_AOLevel2Mul,             aoLevel2Mul * v);
+            m.SetFloat(ID_AOLevel3Mul,             aoLevel3Mul * v);
+            m.SetFloat(ID_DitherLevel1Mul,         ditherLevel1Mul);
+            m.SetFloat(ID_DitherLevel2Mul,         ditherLevel2Mul);
+            m.SetFloat(ID_DitherLevel3Mul,         ditherLevel3Mul);
+            m.SetFloat(ID_Level3FogStrength,       level3FogStrength * v);
+            m.SetColor(ID_Level3FogColor,          level3FogColor);
+            m.SetFloat(ID_Level3FogStart,          level3FogStart);
             m.SetFloat(ID_ShadowAOBoost,           shadowAOBoost);
             m.SetFloat(ID_ShadowAOThreshold,       shadowAOThreshold);
 
@@ -252,6 +285,74 @@ public class ShaderManager : MonoBehaviour
     {
         targetMaterials.Clear();
     }
+
+    // ============================================================
+    // SCENE PRESETS  (one-click configurations for common workflows)
+    // ============================================================
+
+    /// Build / Level editing mode: everything as visible as possible,
+    /// AO and dither minimized so geometry is easy to read in scene view.
+    /// Does NOT touch saved settings - just applies overrides to materials.
+    [ContextMenu("Preset: Build Mode (Scene Edit)")]
+    public void PresetBuildMode()
+    {
+        masterVisibility = 0f;                 // mute all stylized effects
+        ambientLift      = 0.20f;              // floor of visibility on dark areas
+        ambientLiftFadeDistance = 30f;
+        level3FogStrength = 0f;                // no fog
+        ApplyToAll();
+        Debug.Log("[ShaderManager] Build Mode preset applied. Scene clean for editing.");
+    }
+
+    /// Default gameplay look: 3-level system active with balanced multipliers.
+    [ContextMenu("Preset: Gameplay (Default)")]
+    public void PresetGameplay()
+    {
+        masterVisibility = 1f;
+        ambientLift      = 0f;
+        ambientLiftFadeDistance = 8f;
+        level1Distance   = 3f;
+        level2Distance   = 8f;
+        levelBlend       = 1.5f;
+        aoLevel1Mul      = 0.6f;
+        aoLevel2Mul      = 1.8f;
+        aoLevel3Mul      = 4.0f;
+        ditherLevel1Mul  = 1.0f;
+        ditherLevel2Mul  = 1.7f;
+        ditherLevel3Mul  = 2.6f;
+        level3FogStrength = 0.85f;
+        ApplyToAll();
+        Debug.Log("[ShaderManager] Gameplay preset applied.");
+    }
+
+    /// Inscryption-style heavy: marked AO, palette compressed, fog very strong.
+    [ContextMenu("Preset: Inscryption Heavy")]
+    public void PresetInscryption()
+    {
+        masterVisibility = 1f;
+        fakeAOStrength   = 1.5f;
+        fakeAONormalSensitivity = 3.5f;
+        fakeAODepthSensitivity  = 1.5f;
+        shadowAOBoost    = 2.5f;
+        shadowAOThreshold = 0.45f;
+        ditherStrength   = 0.30f;
+        highlightDither  = 0.30f;
+        paletteSteps     = 24f;
+        paletteSaturation = 0.85f;
+        level1Distance   = 2.5f;
+        level2Distance   = 7f;
+        levelBlend       = 1.2f;
+        aoLevel1Mul      = 0.8f;
+        aoLevel2Mul      = 2.2f;
+        aoLevel3Mul      = 5.0f;
+        ditherLevel1Mul  = 1.2f;
+        ditherLevel2Mul  = 2.0f;
+        ditherLevel3Mul  = 3.0f;
+        level3FogStrength = 0.95f;
+        level3FogColor   = new Color(0.02f, 0.015f, 0.01f, 1f);
+        ApplyToAll();
+        Debug.Log("[ShaderManager] Inscryption preset applied.");
+    }
 }
 
 #if UNITY_EDITOR
@@ -285,7 +386,35 @@ public class ShaderManagerEditor : Editor
         }
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Quick Visibility Presets", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Workflow Presets", EditorStyles.boldLabel);
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            GUI.backgroundColor = new Color(0.7f, 1f, 0.7f);
+            if (GUILayout.Button("BUILD MODE (Scene Edit)"))
+            {
+                Undo.RecordObject(mgr, "ShaderManager: Build Mode");
+                mgr.PresetBuildMode();
+                EditorUtility.SetDirty(mgr);
+            }
+            GUI.backgroundColor = Color.white;
+            if (GUILayout.Button("Gameplay (Default)"))
+            {
+                Undo.RecordObject(mgr, "ShaderManager: Gameplay");
+                mgr.PresetGameplay();
+                EditorUtility.SetDirty(mgr);
+            }
+            GUI.backgroundColor = new Color(1f, 0.85f, 0.7f);
+            if (GUILayout.Button("Inscryption Heavy"))
+            {
+                Undo.RecordObject(mgr, "ShaderManager: Inscryption");
+                mgr.PresetInscryption();
+                EditorUtility.SetDirty(mgr);
+            }
+            GUI.backgroundColor = Color.white;
+        }
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Master Visibility Quick", EditorStyles.boldLabel);
         using (new EditorGUILayout.HorizontalScope())
         {
             if (GUILayout.Button("Pure URP (visibility 0)"))

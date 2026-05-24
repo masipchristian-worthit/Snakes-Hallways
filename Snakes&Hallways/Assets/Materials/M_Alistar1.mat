@@ -135,7 +135,7 @@ Material:
     - _AlphaClip: 0
     - _AlphaToMask: 0
     - _AmbientDarkness: 0.3
-    - _AmbientLift: 0
+    - _AmbientLift: 0.12
     - _AmbientLiftFadeDistance: 8
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
@@ -145,13 +145,13 @@ Material:
     - _ClearCoatSmoothness: 0
     - _Contrast: 1.12
     - _Cull: 2
-    - _CurvatureStrength: 0
+    - _CurvatureStrength: 0.405
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
     - _DetailNoise: 1
     - _DetailNormalMapScale: 1
     - _DitherScale: 1
-    - _DitherStrength: 0
+    - _DitherStrength: 0.3
     - _DownwardBias: 0
     - _DstBlend: 0
     - _DstBlendAlpha: 0
@@ -166,7 +166,7 @@ Material:
     - _FakeAOContrast: 1.8
     - _FakeAODepthSensitivity: 1
     - _FakeAONormalSensitivity: 2.5
-    - _FakeAOStrength: 0
+    - _FakeAOStrength: 1
     - _FloorGrimeBoost: 1.3
     - _FogDensityRadius: 4
     - _FogHeightBias: 0.5
@@ -181,7 +181,7 @@ Material:
     - _GrimeDirectionality: 0.7
     - _GrimeIntensity: 0.55
     - _GrimeScale: 1
-    - _HighlightDither: 0
+    - _HighlightDither: 0.3
     - _HighlightSoftness: 0.15
     - _HighlightThreshold: 0.85
     - _MaskMapStrength: 0
@@ -194,7 +194,7 @@ Material:
     - _NormalStrength: 1
     - _OcclusionStrength: 1
     - _PaletteSaturation: 1
-    - _PaletteSteps: 64
+    - _PaletteSteps: 32
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
