@@ -67,7 +67,7 @@ PrefabInstance:
     - target: {fileID: -7511558181221131132, guid: f113abee7220f614e9dd636de12a99fd, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: bc09ae7140e1e2f4a807148083c87a49, type: 2}
+      objectReference: {fileID: 2100000, guid: 8ce414b6281089a43b39ffc02dcbef60, type: 2}
     - target: {fileID: 919132149155446097, guid: f113abee7220f614e9dd636de12a99fd, type: 3}
       propertyPath: m_Name
       value: SM_Hueso1
