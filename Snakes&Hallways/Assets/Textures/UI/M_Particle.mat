@@ -171,7 +171,7 @@ Material:
     - _AmbientLiftTint: {r: 1, g: 1, b: 1, a: 1}
     - _BaseColor: {r: 1, g: 0, b: 0.07557678, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _EmissionColor: {r: 4.5895233, g: 0, b: 0.47319877, a: 1}
+    - _EmissionColor: {r: 3.082955, g: 0, b: 0.13098007, a: 1}
     - _FakeAOTint: {r: 0, g: 0, b: 0, a: 1}
     - _Level3FogColor: {r: 0.02, g: 0.02, b: 0.02, a: 1}
     - _NormalRimColor: {r: 0, g: 0, b: 0, a: 1}

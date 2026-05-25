@@ -405,7 +405,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
       propertyPath: lines.Array.size
-      value: 8
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
       propertyPath: 'lines.Array.data[5]'
@@ -419,7 +419,35 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
       propertyPath: 'lines.Array.data[7]'
+      value: They gave you one eye of the beast, so you could think like it.
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[8]'
       value: Now go, and fight for your fate.
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[9]'
+      value: WASD - Move
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[10]'
+      value: F - Lantern
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[11]'
+      value: Tab - Equip Eye
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[12]'
+      value: C - Use Eye
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[13]'
+      value: Ctrl - Crouch
+      objectReference: {fileID: 0}
+    - target: {fileID: 4353509863833162392, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
+      propertyPath: 'lines.Array.data[14]'
+      value: Space - Jump
       objectReference: {fileID: 0}
     - target: {fileID: 4766324302430587323, guid: 878795f03d06d30409b7bce7661cc455, type: 3}
       propertyPath: m_Pivot.x

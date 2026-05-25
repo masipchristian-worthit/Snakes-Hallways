@@ -434,6 +434,98 @@ El viejo aún funciona pero da warning que ralentiza compilación.
 
 ## 16. Changelog
 
+### Gameplay v0.7 — 2026-05-25 (auditoría de SFX + PlayerDamage + Door tag-based)
+
+**`SFXId.PlayerDamage` añadido** al enum de `AudioManager` (= 29, último libre tras `UIUnpause`). `PlayerHealth.TakeDamage()` ahora hace `AudioManager.Instance?.PlaySFX(SFXId.PlayerDamage, transform.position)` justo después de restar HP. Pasa por el mixer (Master + SFX), espacializado.
+
+**Acción requerida:** dejar caer `PlayerDamage.mp3` en `Assets/Audio/SFX/`. El auto-builder del AudioManager lo mapea solo por coincidencia de nombre.
+
+**`Door.cs` — auto-resolución por tag/collider, no por nombre:**
+- El setup canónico ahora es:
+  - PADRE: Animator + `Door.cs`
+  - HIJO: tag `Interactable`, layer `Door`, BoxCollider `isTrigger` (componente `Interactable` opcional — `Door.cs` lo crea automáticamente si no existe)
+- `Door.ResolveInteractable()` busca BoxColliders en hijos con `isTrigger=true` + tag `Interactable`. Si el GO no tiene el componente `Interactable` se lo `AddComponent` en runtime.
+- Logs un warning si no encuentra ninguno.
+- También audio vía AudioManager con `SFXId.Door` (flag `useAudioManagerSfx` ON por defecto).
+
+**Auditoría completa de SFX/Music:** 21 SFX activos + 5 Music todos mapeados a archivos existentes en `Assets/Audio/SFX/` y `Assets/Audio/Music/`. Cero archivos huérfanos, cero IDs huérfanos. Nota menor: `VictoryManager.cs:71` aún llama `PlayMusic(MusicId.Win)`; SceneMusicController ya lo hace en SCN_EndingScene → línea redundante (no crítica, AudioManager hace early-return).
+
+### Gameplay v0.6 — 2026-05-25 (refactor de managers + WinCollider único + pickups por GameManager)
+
+**Decisiones del owner aplicadas:**
+
+1. **DefeatManager = autoridad única de la derrota.** GameManager solo emite `OnStateChanged(GameOver)`. DefeatManager se encarga de:
+   - Reproducir `MusicId.GameOver` (campo serializado `deathMusic`, configurable).
+   - Cargar `SCN_DeathScene` con fade.
+   - Liberar cursor.
+   - Doble subscripción (PlayerHealth.OnDied + GameManager.OnStateChanged) es idempotente vía `isDefeated`.
+
+2. **`WinCollider` = single trigger de victoria.** Sustituye a `PortalManager`:
+   - Detecta `OnTriggerEnter` del player.
+   - Lee pickups de la dificultad vía `GameManager.PickupsCollected` / `PickupsRequired`.
+   - `requireAllPickups = true` por defecto.
+   - Llama `GameManager.TriggerWin()` (estado Win + EndRun) y `SceneTransition.FadeAndLoad("SCN_EndingScene")`.
+   - Música Win la pone `SceneMusicController` al cargar la ending.
+
+3. **`PortalManager` → obsoleto.** Su GameObject puede eliminarse de la jerarquía. La clase queda como zero-cost dead code para no romper meta-refs en prefabs viejos.
+
+4. **`GameManager.SetupScenePickups()` — sustituye `PickupManager`:**
+   - En `BeginRun`: `FindObjectsByType<Pickup>(FindObjectsInactive.Include, …)` → coge **todos** los Pickup de la escena (incluidos los apagados manualmente en el editor).
+   - Shuffle Fisher-Yates → activa solo `PickupsRequired` (de la dificultad), apaga el resto.
+   - Warning si la escena tiene menos pickups que los que pide la dificultad.
+
+5. **GameManager simplificado:** `TriggerGameOver` y `TriggerWin` ya NO llaman a `AudioManager.PlayMusic`, ni a `DefeatManager.TriggerDefeat`, ni a `SceneTransition.FadeAndLoad`. Solo cambian estado y emiten evento.
+
+6. **`SceneMusicController` no mapea `SCN_DeathScene`** — DefeatManager es responsable exclusivo. Mantenido el mapeo para `SCN_EndingScene → Win`.
+
+**Flujo final consolidado:**
+
+```
+WIN:   Player → WinCollider → GameManager.TriggerWin(state=Win, EndRun)
+                            → SceneTransition.FadeAndLoad(SCN_EndingScene)
+                            → SceneMusicController pone MusicId.Win
+
+LOSE:  PlayerHealth.OnDied → GameManager.TriggerGameOver(state=GameOver, EndRun)
+                          → DefeatManager (via OnStateChanged)
+                          → PlayMusic(GameOver) + FadeAndLoad(SCN_DeathScene)
+
+PICKUPS: BeginRun → SetupScenePickups (find all + shuffle + activate N)
+```
+
+### Gameplay v0.5 — 2026-05-25 (jump fix + viewmodel follow + Door + dificultad progresiva)
+
+**Bug fix crítico — el player no saltaba:** la acción `Jump` del `PlayerInput` (modo Invoke Unity Events) tenía `m_PersistentCalls.m_Calls: []` vacío en el prefab. `PlayerController.OnJump` nunca se llamaba.
+
+**Fix:** `PlayerController.TryAutoWireJumpAction()` en `Awake` resuelve el `PlayerInput`, hace `actions.FindAction("Jump")` y suscribe `OnJump` a `performed` + `canceled` por código. Flag `autoWireJumpAction = true` para desactivar si más adelante alguien cablea el binding en el Inspector.
+
+**Feel "AAA" del salto:**
+- `fallMultiplier` (default 2.2): gravedad extra al caer (`v.y < 0`). Combinado con `ApplyJumpCut` (variable jump height) da arco con peso.
+- Existentes que verificamos OK: coyote time, jump buffer, stamina cost, tired multiplier, ground check.
+
+**`ViewmodelFollow.cs`** — view-model FPS standard:
+- Mantiene `GuanteBaked` a posición/rotación fija respecto a `Main Camera`.
+- Suavizado exponencial frame-rate-independent: `t = 1 - e^(-k·dt)`.
+- Setup: Layer `Viewmodel` aparte + `ViewmodelCamera` hija de Main con `Depth only`, culling solo Viewmodel, depth+1. Main Camera excluye `Viewmodel`. Lamp también excluye `Viewmodel` (no sombras del guante).
+- `Cast Shadows = Off` en los Renderers del guante.
+- Componente `ViewmodelFollow` en `GuanteBaked` con captura de offset desde el Inspector.
+
+**Animaciones del Sphere (ojo) — bug de paths:** los clips `Sphere|...` del FBX tienen sus curvas keyadas con path `Sphere.001`. Con el Animator EN el GO Sphere.001 no resolvían. Solución: editor script `Tools/Player/Rebind Sphere Clips → Root` que duplica los clips a `.anim` editables con path = "" (raíz). Hay que reasignar los Motion en `AC_PlayerEye` a las versiones `_Root`.
+
+**Door.cs** — bloqueo del Animator hasta interactuar:
+- AnimatorController con `Entry → Scene` (Scene = Default con motion de apertura) hace que la puerta se abra al cargar la escena.
+- Fix: en `Start()` hace `anim.Play(state, 0, 0f) + anim.speed = 0 + anim.Update(0)` para fijar la pose del frame 0.
+- `Open()` (público, llamado desde Interactable.OnInteract) pone `speed = 1` y vuelve a `Play(state, 0, 0f)`.
+- Auto-resuelve Animator y auto-suscribe a Interactable hijo.
+
+**Dificultad progresiva por pickup:**
+- `DifficultyManager.GetRuntimeSettings()` interpola TODOS los campos del preset elegido hacia el "techo" (Easy→Medium, Medium→Hard, Hard→Impossible) usando `progress = pickupsCollected/pickupsRequired` con curva `SmoothStep` (ease-in).
+- Campos con "0 = desactivado" (forced respawn) se respetan: si en base están en 0, no se activan por progresión.
+- `EnemyAIBase` y `EnemyAIInteligent` usan `GetRuntimeSettings()` en lugar de `GetSettings()` para todas las decisiones de comportamiento.
+
+**Otros:**
+- `WinCollider.cs` (en `Assets/Scripts/GamePlay/`) — trigger de victoria con `requireAllPickups`.
+- `GameManager.EndRun(bool won)` — limpieza centralizada (resetea contadores, deshabilita inteligente).
+
 ### Gameplay v0.4 — 2026-05-24 (forced respawn del minotauro por dificultad)
 
 Para que la IA no se "pierda" eternamente en mapas grandes (especialmente cuando el jugador rusha lejos), se añade un sistema de **respawn forzado** del minotauro escalado por dificultad.
@@ -810,4 +902,4 @@ textura, documentación y README maestro.
 
 ---
 
-_Última actualización: 2026-05-24 Gameplay v0.4 — Forced respawn del minotauro por dificultad (no-sight + far-from-player)._
+_Última actualización: 2026-05-25 Gameplay v0.7 — SFX audit + PlayerDamage + Door tag-based auto-wire._

@@ -322,7 +322,7 @@ Transform:
   m_GameObject: {fileID: 5773530608929823394}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -0.44}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -504,8 +504,8 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0.754717, g: 0.6399349, b: 0.3773584, a: 1}
-  m_Intensity: 4
-  m_Range: 15
+  m_Intensity: 5.5
+  m_Range: 18
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
@@ -541,7 +541,7 @@ Light:
   m_RenderMode: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 3007
+    m_Bits: 7103
   m_RenderingLayerMask: 1
   m_Lightmapping: 4
   m_LightShadowCasterMode: 0
@@ -661,7 +661,7 @@ Camera:
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 2047
+    m_Bits: 6143
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
@@ -844,9 +844,9 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.66647
-  m_Height: 2.17
+  m_Height: 1.784131
   m_Direction: 1
-  m_Center: {x: -0.048481207, y: 0, z: -0.015927596}
+  m_Center: {x: -0.048481226, y: -0.19293451, z: -0.015927596}
 --- !u!54 &426553959226810132
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1055,6 +1055,50 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: c1a23b00-1111-4000-aaaa-000000000005
     m_ActionName: 'Gameplay/SwitchCamera[/Keyboard/c,/DualSenseGamepadHID/dpad/down]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: c1a23b00-1111-4000-aaaa-000000000006
+    m_ActionName: 'Gameplay/Highlight[/Keyboard/semicolon]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-000000000002
+    m_ActionName: 'UI/Navigate[/Keyboard/upArrow,/Keyboard/downArrow,/Keyboard/leftArrow,/Keyboard/rightArrow,/Keyboard/w,/Keyboard/s,/Keyboard/a,/Keyboard/d]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-000000000003
+    m_ActionName: 'UI/Submit[/Keyboard/space]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-000000000004
+    m_ActionName: 'UI/Cancel[/Keyboard/escape]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-000000000005
+    m_ActionName: 'UI/Point[/Mouse/position,/Pen/position]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-000000000006
+    m_ActionName: 'UI/Click[/Mouse/leftButton,/Pen/tip]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-000000000007
+    m_ActionName: 'UI/ScrollWheel[/Mouse/scroll]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-000000000008
+    m_ActionName: 'UI/MiddleClick[/Mouse/middleButton]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-000000000009
+    m_ActionName: 'UI/RightClick[/Mouse/rightButton]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-00000000000a
+    m_ActionName: UI/TrackedDevicePosition
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d1e2f300-aaaa-4000-bbbb-00000000000b
+    m_ActionName: UI/TrackedDeviceOrientation
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
   m_DefaultActionMap: Gameplay
@@ -1099,8 +1143,8 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
-  standHeight: 1.7
-  crouchHeight: 1
+  standHeight: 1.58
+  crouchHeight: 0.6
   crouchLerpSpeed: 8
   playerCollider: {fileID: 2044213126930599352}
   maxStamina: 5

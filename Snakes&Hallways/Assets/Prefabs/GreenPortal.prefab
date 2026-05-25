@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 4906465212949377087}
   - component: {fileID: 8495366046198780007}
   - component: {fileID: 5706959534693776234}
+  - component: {fileID: 5819365495531929296}
   m_Layer: 0
   m_Name: GreenPortal
   m_TagString: Untagged
@@ -28,7 +29,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6178343601712637618}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.70686555, y: -0.018469576, z: -0.018469572, w: 0.70686555}
+  m_LocalRotation: {x: -0.7068656, y: -0.018466728, z: -0.018466728, w: 0.7068656}
   m_LocalPosition: {x: -135.85, y: 3.26, z: 51.89}
   m_LocalScale: {x: 0.73460096, y: 0.63922817, z: 1.047631}
   m_ConstrainProportionsScale: 0
@@ -203,9 +204,29 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 9.999999, y: 1.8065008, z: 10.000002}
   m_Center: {x: -1.5606981e-10, y: 0.059085727, z: 4.4521264e-16}
+--- !u!114 &5819365495531929296
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6178343601712637618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3abd7dadbb047e94e99dbbcb48ca28ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WinCollider
+  endSceneName: SCN_EndingScene
+  fadeTime: 1.5
+  triggerWinState: 1
+  requireAllPickups: 1
+  portalVisual: {fileID: 6178343601712637618}
+  portalLoopSource: {fileID: 8495366046198780007}
+  portalIdleFadeIn: 0.8
+  portalIdleVolume: 0.8

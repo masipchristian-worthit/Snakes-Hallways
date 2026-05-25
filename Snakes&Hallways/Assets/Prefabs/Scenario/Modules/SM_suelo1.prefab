@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 7914663090713124855}
   - component: {fileID: 4983321316141985458}
   - component: {fileID: 1271658153525940627}
-  m_Layer: 12
+  m_Layer: 3
   m_Name: Suelo
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -98,7 +98,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8712500833481041439}
-  m_Layer: 12
+  m_Layer: 3
   m_Name: SM_suelo1
   m_TagString: Ground
   m_Icon: {fileID: 0}

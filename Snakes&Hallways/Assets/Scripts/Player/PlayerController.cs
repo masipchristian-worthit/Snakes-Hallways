@@ -666,11 +666,17 @@ public class PlayerController : MonoBehaviour
         var dir = camHolder.transform.forward;
         if (Physics.SphereCast(origin, interactRadius, dir, out var hit, interactRange, interactMask, QueryTriggerInteraction.Collide))
         {
+            // 1) Interactable clásico (puertas, palancas, etc.) — requiere tag "Interactable".
             if (hit.collider.CompareTag("Interactable"))
             {
                 var interact = hit.collider.GetComponentInParent<Interactable>();
-                if (interact) interact.Interact();
+                if (interact) { interact.Interact(); return; }
             }
+            // 2) Pickup: el jugador puede recogerlo con el botón de interact además del trigger
+            //    por contacto. Esto evita casos en los que el collider trigger no dispara
+            //    OnTriggerEnter (slope, kinematic body, etc.).
+            var pickup = hit.collider.GetComponentInParent<Pickup>();
+            if (pickup) pickup.InteractPickup();
         }
     }
 
@@ -717,6 +723,7 @@ public class PlayerController : MonoBehaviour
     public void OnReload(InputAction.CallbackContext ctx) { /* hook reload */ }
     public void OnShoot(InputAction.CallbackContext ctx) { /* hook shoot */ }
     public void OnToggleHand(InputAction.CallbackContext ctx) { if (ctx.performed) ToggleHand(); }
+    public void OnHighlight(InputAction.CallbackContext ctx) { if (ctx.performed) HighlightController.Toggle(); }
 
     /// <summary>
     /// Solo permite alternar a la cámara enemiga si el jugador tiene la mano sacada.

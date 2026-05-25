@@ -18,16 +18,17 @@ public class EnemyAIBase : MonoBehaviour
     [Header("Patrol")]
     [Tooltip("Si está vacío, el enemigo patrullará escogiendo puntos aleatorios del NavMesh.")]
     [SerializeField] List<Transform> patrolPoints = new();
-    [SerializeField] float patrolWaitTime = 2.5f;
+    [Tooltip("Espera entre patrol points (s). Bajado por defecto para que patrulle de forma más constante.")]
+    [SerializeField] float patrolWaitTime = 0.6f;
     [SerializeField] float arriveDistance = 1.2f;
 
     [Header("Patrol — NavMesh wander (cuando no hay patrolPoints)")]
-    [Tooltip("Radio alrededor del enemigo para muestrear puntos aleatorios del NavMesh.")]
-    [SerializeField] float wanderRadius = 18f;
+    [Tooltip("Radio alrededor del enemigo para muestrear puntos aleatorios del NavMesh. Subido para que cubra distancias mucho más largas.")]
+    [SerializeField] float wanderRadius = 35f;
     [Tooltip("Nº de intentos por elección de punto. Se queda con el mejor candidato según escalación de dificultad.")]
-    [SerializeField] int wanderSampleCount = 6;
-    [Tooltip("Distancia mínima entre puntos consecutivos para no quedarse dando vueltas.")]
-    [SerializeField] float wanderMinStep = 4f;
+    [SerializeField] int wanderSampleCount = 8;
+    [Tooltip("Distancia mínima entre puntos consecutivos para no quedarse dando vueltas. Subido para forzar saltos largos.")]
+    [SerializeField] float wanderMinStep = 12f;
 
     [Header("Speeds")]
     [SerializeField] float patrolSpeed = 2.2f;
@@ -64,7 +65,43 @@ public class EnemyAIBase : MonoBehaviour
     [Tooltip("Si tras un respawn forzado el minotauro mira al jugador, pasa directo a Chase. Si false, vuelve a Patrol.")]
     [SerializeField] bool forcedRespawnChasesIfFacing = true;
     [Tooltip("Cooldown (s) entre dos respawns forzados, para evitar teleports consecutivos.")]
-    [SerializeField] float forcedRespawnCooldown = 8f;
+    [SerializeField] float forcedRespawnCooldown = 4f;
+
+    [Header("Stuck respawn")]
+    [Tooltip("Segundos sin moverse apreciablemente (no salir del mismo radio) antes de teleportarse forzosamente. 0 = desactivado.")]
+    [SerializeField] float stuckRespawnSeconds = 6f;
+    [Tooltip("Radio (m) que el minotauro debe abandonar para resetear el contador de stuck. Si se queda dentro X s, se considera atascado.")]
+    [SerializeField] float stuckRadius = 3f;
+    [Tooltip("Y forzada del respawn: tras samplear XZ alrededor del jugador, el Warp queda fijado a esta altura (suele coincidir con el navmesh superior del mapa).")]
+    [SerializeField] float forcedRespawnY = 0f;
+    [Tooltip("Tolerancia vertical al samplear NavMesh alrededor de (playerX, forcedRespawnY, playerZ). Subir si el navmesh superior no es perfectamente plano.")]
+    [SerializeField] float forcedRespawnVerticalTolerance = 2f;
+    [Tooltip("Radio MÍNIMO (m) alrededor del jugador en el que el minotauro NUNCA puede reaparecer. Cualquier candidato de respawn dentro de esta zona se descarta.")]
+    [SerializeField] float minSafeRespawnRadius = 7f;
+
+    [Header("Chase — lead targeting (predicción)")]
+    [Tooltip("Apunta a player.position + playerVelocity * leadTime. 0 = sin predicción (apunta al jugador exacto).")]
+    [SerializeField] float chaseLeadTime = 0.35f;
+    [Tooltip("Clamp del offset de predicción para no sobre-anticipar en sprints largos.")]
+    [SerializeField] float chaseMaxLeadDistance = 4f;
+
+    [Header("Search — espiral tras perder LoS")]
+    [Tooltip("Nº de waypoints de la espiral de búsqueda tras agotar chaseMemory. 0 = desactivado (legacy: ir directo al last known).")]
+    [SerializeField] int spiralSearchPoints = 4;
+    [Tooltip("Radio mínimo del primer waypoint de la espiral (centrada en el last known position).")]
+    [SerializeField] float spiralMinRadius = 3f;
+    [Tooltip("Radio máximo del último waypoint de la espiral.")]
+    [SerializeField] float spiralMaxRadius = 9f;
+
+    [Header("Speed smoothing")]
+    [Tooltip("Aceleración de Agent.speed (m/s²) al cambiar de estado. 0 = cambio instantáneo (legacy).")]
+    [SerializeField] float speedAccel = 6f;
+
+    [Header("Stalking audio — breath cerca sin LoS")]
+    [Tooltip("Distancia (m) bajo la cual el breath se intensifica si el jugador NO tiene LoS. 0 = stalking audio desactivado.")]
+    [SerializeField] float stalkAudioDistance = 8f;
+    [Tooltip("Multiplicador máximo del volumen del breath cuando el jugador está pegado al monstruo y no lo ve.")]
+    [SerializeField] float stalkAudioMaxBoost = 2.2f;
 
     [Header("Refs")]
     [SerializeField] EnemyAnimator enemyAnim;
@@ -102,6 +139,22 @@ public class EnemyAIBase : MonoBehaviour
     float noSightTimer;              // segundos seguidos sin tener LoS con el jugador
     float farFromPlayerTimer;        // segundos seguidos por encima de farFromPlayerDistance
     float forcedRespawnCooldownTimer;
+    // Stuck detection: ancla la posición y mide cuánto tiempo lleva sin abandonar stuckRadius.
+    Vector3 stuckAnchor;
+    float stuckTimer;
+    bool stuckInit;
+
+    // Speed smoothing
+    float targetSpeed;
+
+    // Player velocity estimation (para lead targeting)
+    Vector3 prevPlayerPos;
+    Vector3 playerVelocity;
+    bool prevPlayerInit;
+
+    // Spiral search queue
+    readonly Queue<Vector3> spiralQueue = new();
+    bool inSpiralSearch;
 
     void Awake()
     {
@@ -131,6 +184,8 @@ public class EnemyAIBase : MonoBehaviour
         var p = GameObject.FindGameObjectWithTag("Player");
         if (p) player = p.transform;
         SetState(State.Patrol); // Patrol funciona también sin patrolPoints (wander por NavMesh).
+        // Inicializa speed sin lerp para evitar arrancar a 0 si el inspector lo dejó así.
+        if (Agent != null) Agent.speed = targetSpeed;
     }
 
     void Update()
@@ -169,10 +224,7 @@ public class EnemyAIBase : MonoBehaviour
             {
                 if (KnownPlayerPos.HasValue)
                 {
-                    investigatePoint = KnownPlayerPos;
-                    investigateTimer = 0f;
-                    Agent.SetDestination(KnownPlayerPos.Value);
-                    SetState(State.Investigate);
+                    BeginSpiralSearch(KnownPlayerPos.Value);
                 }
                 else
                 {
@@ -182,6 +234,8 @@ public class EnemyAIBase : MonoBehaviour
             }
         }
 
+        TickPlayerVelocityEstimate();
+        TickSpeedSmoothing();
         TickIdleSounds();
         TickForcedRespawn();
 
@@ -209,16 +263,18 @@ public class EnemyAIBase : MonoBehaviour
     {
         // Al salir de patrullaje invalidamos el wander target para que recalcule al volver.
         if (CurrentState == State.Patrol && s != State.Patrol) hasWanderTarget = false;
+        // Al salir de Investigate también limpiamos la cola de espiral.
+        if (CurrentState == State.Investigate && s != State.Investigate) { spiralQueue.Clear(); inSpiralSearch = false; }
         CurrentState = s;
         switch (s)
         {
-            case State.Patrol: Agent.speed = patrolSpeed; Agent.isStopped = false; hasWanderTarget = false; break;
-            case State.Investigate: Agent.speed = investigateSpeed; Agent.isStopped = false; break;
+            case State.Patrol: targetSpeed = patrolSpeed; Agent.isStopped = false; hasWanderTarget = false; break;
+            case State.Investigate: targetSpeed = investigateSpeed; Agent.isStopped = false; break;
             case State.Alert: Agent.isStopped = true; enemyAnim?.TriggerAlert(); break;
             case State.Chase:
                 {
                     var diff = DifficultyManager.Instance ? DifficultyManager.Instance.GetRuntimeSettings().chaseSpeedMul : 1f;
-                    Agent.speed = chaseSpeed * diff;
+                    targetSpeed = chaseSpeed * diff;
                     Agent.isStopped = false;
                     // MinotaurDetect SFX descartado.
                     AudioManager.Instance?.PlayMusic(MusicId.Chase);
@@ -227,15 +283,58 @@ public class EnemyAIBase : MonoBehaviour
             case State.Attacking:
                 Agent.isStopped = true;                 // se planta para golpear
                 enemyAnim?.TriggerAttack();             // dispara el UnityEvent (Animator.Play "Attack", SFX, etc.)
-                // OJO: el daño se aplica desde el AnimationEvent "AttackFrame" de la animación de ataque.
-                // EnemyAnimator.AttackFrame() → EnemyAIBase.OnAttackFrame() → attackCollider.OpenWindow()
+                // El daño puede venir por dos vías:
+                //   a) AnimationEvent "AttackFrame" → OnAttackFrame() (preferida, sincronizada al swing).
+                //   b) Fallback temporal en TickAttack() si la anim no llega a reproducir (p.ej. el
+                //      jugador se queda pegado y la transición Run→Attack no dispara el frame event).
+                //      Sin esto, el minotauro entra a Attacking pero nunca aplica daño.
+                attackDamageApplied = false;
                 break;
             case State.Idle: Agent.isStopped = true; break;
         }
     }
 
+    /// <summary>
+    /// Suaviza la transición de <see cref="NavMeshAgent.speed"/> hacia <see cref="targetSpeed"/>
+    /// para evitar saltos bruscos entre patrol↔chase. Si <see cref="speedAccel"/> = 0, salta directo.
+    /// </summary>
+    void TickSpeedSmoothing()
+    {
+        if (Agent == null) return;
+        if (speedAccel <= 0f) { Agent.speed = targetSpeed; return; }
+        Agent.speed = Mathf.MoveTowards(Agent.speed, targetSpeed, speedAccel * Time.deltaTime);
+    }
+
+    /// <summary>
+    /// Estima la velocidad del jugador a partir del delta de posición frame a frame.
+    /// La usa <see cref="TickChase"/> para "lead targeting" (anticipar giros).
+    /// </summary>
+    void TickPlayerVelocityEstimate()
+    {
+        if (!player) { prevPlayerInit = false; playerVelocity = Vector3.zero; return; }
+        if (!prevPlayerInit)
+        {
+            prevPlayerPos = player.position;
+            prevPlayerInit = true;
+            playerVelocity = Vector3.zero;
+            return;
+        }
+        Vector3 delta = player.position - prevPlayerPos;
+        if (Time.deltaTime > 0f)
+            playerVelocity = delta / Time.deltaTime;
+        prevPlayerPos = player.position;
+    }
+
     void BeginChase(DetectionVisibility vis)
     {
+        // Si ya tiene al jugador a tiro, NUNCA entra a Alert: ataque inmediato.
+        if (player != null && Vector3.Distance(transform.position, player.position) <= attackRange + 0.5f
+            && attackCooldownTimer <= 0f && postAttackWalkTimer <= 0f)
+        {
+            SetState(State.Attacking);
+            return;
+        }
+
         if (vis == DetectionVisibility.Backside)
         {
             // 60% directly charges, 40% roars first (Alert).
@@ -268,6 +367,24 @@ public class EnemyAIBase : MonoBehaviour
         {
             AudioManager.Instance?.StopLoop(minotaurSource, idleBreathFadeOut);
             idleBreathActive = false;
+        }
+
+        // ── Stalking proximity audio ────────────────────────────────────────
+        // Si el breath está activo, modulamos su volumen por proximidad SIN LoS:
+        // cuanto más cerca está el jugador y MENOS lo ve el minotauro, más fuerte
+        // se escucha la respiración. Genera la tensión de "está aquí cerca pero no
+        // lo vemos". Si el jugador SÍ tiene LoS, breath al volumen base.
+        if (idleBreathActive && minotaurSource != null && stalkAudioDistance > 0f && player != null)
+        {
+            bool seesPlayer = detection != null && detection.HasLineOfSight;
+            float dist = Vector3.Distance(transform.position, player.position);
+            // proximity 0..1: 0 lejos / fuera de rango, 1 pegado.
+            float proximity = 1f - Mathf.Clamp01(dist / stalkAudioDistance);
+            // Solo aplica el boost si el monstruo NO está siendo visto (acechando).
+            float boost = seesPlayer ? 1f : Mathf.Lerp(1f, Mathf.Max(1f, stalkAudioMaxBoost), proximity);
+            float wanted = Mathf.Clamp01(idleBreathVolume * boost);
+            // Smoothing exponencial para que no haya saltos audibles.
+            minotaurSource.volume = Mathf.MoveTowards(minotaurSource.volume, wanted, 1.5f * Time.deltaTime);
         }
     }
 
@@ -385,8 +502,83 @@ public class EnemyAIBase : MonoBehaviour
         if (Agent.remainingDistance <= arriveDistance)
         {
             investigateTimer += Time.deltaTime;
-            if (investigateTimer >= 3f) { investigatePoint = null; investigateTimer = 0f; SetState(State.Patrol); }
+            // En espiral los waypoints son "fly-by": no se queda parado en cada uno,
+            // sólo el waypoint final mantiene el dwell de 3s.
+            float dwell = (inSpiralSearch && spiralQueue.Count > 0) ? 0.4f : 3f;
+            if (investigateTimer >= dwell)
+            {
+                investigateTimer = 0f;
+                if (inSpiralSearch && spiralQueue.Count > 0)
+                {
+                    Vector3 next = spiralQueue.Dequeue();
+                    investigatePoint = next;
+                    Agent.SetDestination(next);
+                }
+                else
+                {
+                    investigatePoint = null;
+                    inSpiralSearch = false;
+                    SetState(State.Patrol);
+                }
+            }
         }
+    }
+
+    /// <summary>
+    /// Genera una secuencia de waypoints en espiral alrededor del último punto conocido
+    /// del jugador y entra a Investigate consumiéndolos uno a uno. Cada waypoint se
+    /// samplea contra el NavMesh; los que no caen en navmesh se descartan.
+    /// </summary>
+    void BeginSpiralSearch(Vector3 center)
+    {
+        spiralQueue.Clear();
+
+        int n = Mathf.Max(0, spiralSearchPoints);
+        if (n <= 0)
+        {
+            // Sin espiral: comportamiento legacy (ir directo al last known).
+            investigatePoint = center;
+            investigateTimer = 0f;
+            Agent.SetDestination(center);
+            inSpiralSearch = false;
+            SetState(State.Investigate);
+            return;
+        }
+
+        // Distribuye n puntos en una espiral logarítmica simple: ángulo crece
+        // de forma escalonada (Phi golden-angle ≈ 137.5°) para evitar simetrías,
+        // radio interpola lineal de min→max.
+        const float goldenAngleDeg = 137.508f;
+        float baseAngle = Random.value * 360f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = (n == 1) ? 0f : (float)i / (n - 1);
+            float radius = Mathf.Lerp(spiralMinRadius, spiralMaxRadius, t);
+            float angleDeg = baseAngle + i * goldenAngleDeg;
+            float rad = angleDeg * Mathf.Deg2Rad;
+            Vector3 candidate = center + new Vector3(Mathf.Cos(rad) * radius, 0f, Mathf.Sin(rad) * radius);
+
+            if (NavMesh.SamplePosition(candidate, out var hit, Mathf.Max(2f, spiralMinRadius), NavMesh.AllAreas))
+                spiralQueue.Enqueue(hit.position);
+        }
+
+        if (spiralQueue.Count == 0)
+        {
+            // Ningún waypoint válido: ir al last known directamente.
+            investigatePoint = center;
+            investigateTimer = 0f;
+            Agent.SetDestination(center);
+            inSpiralSearch = false;
+        }
+        else
+        {
+            inSpiralSearch = true;
+            Vector3 first = spiralQueue.Dequeue();
+            investigatePoint = first;
+            investigateTimer = 0f;
+            Agent.SetDestination(first);
+        }
+        SetState(State.Investigate);
     }
 
     float alertTimer;
@@ -401,7 +593,22 @@ public class EnemyAIBase : MonoBehaviour
     {
         if (!player) return;
 
-        Vector3 targetPoint = KnownPlayerPos ?? player.position;
+        // ── Lead targeting (predicción) ─────────────────────────────────────
+        // Si tenemos LoS (KnownPlayerPos == player.position fresh) usamos predicción.
+        // Si NO tenemos LoS pero KnownPlayerPos sigue válido, no predecimos (sería ruido).
+        Vector3 basePoint = KnownPlayerPos ?? player.position;
+        bool hasLoSNow = detection != null && detection.HasLineOfSight;
+        if (hasLoSNow && chaseLeadTime > 0f)
+        {
+            Vector3 lead = playerVelocity * chaseLeadTime;
+            // Solo aporta XZ (la altura la marca el navmesh).
+            lead.y = 0f;
+            if (lead.magnitude > chaseMaxLeadDistance)
+                lead = lead.normalized * chaseMaxLeadDistance;
+            basePoint += lead;
+        }
+
+        Vector3 targetPoint = basePoint;
         // Mantén una distancia de seguridad: no apuntes al pie del jugador, apunta a un punto
         // por delante a 'safetyDistance' de él, así nunca lo clipea.
         Vector3 toPlayer = targetPoint - transform.position;
@@ -424,6 +631,9 @@ public class EnemyAIBase : MonoBehaviour
     }
 
     float attackTimer;
+    bool attackDamageApplied;
+    [Tooltip("Fracción de attackDuration (0..1) a la que se aplica el daño si la animación no dispara AttackFrame.")]
+    [SerializeField] float attackDamageFallbackT = 0.5f;
     void TickAttack()
     {
         attackTimer += Time.deltaTime;
@@ -436,6 +646,15 @@ public class EnemyAIBase : MonoBehaviour
                 Quaternion target = Quaternion.LookRotation(to.normalized, Vector3.up);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, target, 360f * Time.deltaTime);
             }
+        }
+        // Fallback de daño: si pasada la mitad del ataque la anim no ha llamado a OnAttackFrame
+        // (por ejemplo porque la transición Run→Attack no se reprodujo entera), aplicamos
+        // el daño aquí mismo mientras el jugador siga en rango.
+        if (!attackDamageApplied && attackTimer >= attackDuration * Mathf.Clamp01(attackDamageFallbackT))
+        {
+            if (player && Vector3.Distance(transform.position, player.position) <= attackRange + 0.5f)
+                attackCollider?.OpenWindow();
+            attackDamageApplied = true;
         }
         if (attackTimer >= attackDuration)
         {
@@ -453,16 +672,33 @@ public class EnemyAIBase : MonoBehaviour
         {
             attackCollider?.OpenWindow();
         }
+        attackDamageApplied = true; // evita doble daño con el fallback de TickAttack.
     }
 
     /// <summary>Llámalo desde EnemyAttack cuando un golpe IMPACTA al jugador.
-    /// Fuerza al enemigo a caminar (sin atacar) X segundos según dificultad y arranca cooldown.</summary>
+    /// Si el jugador sigue dentro del attackRange, el minotauro REENCADENA otro ataque
+    /// (no le da respiro). Si el jugador escapó, aplica el cooldown/walk normal.</summary>
     public void NotifyAttackLanded()
     {
         var diff = DifficultyManager.Instance != null ? DifficultyManager.Instance.GetRuntimeSettings() : null;
+
+        bool playerStillClose = player != null &&
+            Vector3.Distance(transform.position, player.position) <= attackRange + 0.5f;
+
+        if (playerStillClose)
+        {
+            // El jugador no se ha movido del rango → encadenar otro golpe ya.
+            // Cooldown mínimo para que la animación no se solape consigo misma.
+            attackCooldownTimer = 0.1f;
+            postAttackWalkTimer = 0f;
+            // Si ya estamos atacando, dejamos que TickAttack termine y vuelva a Chase,
+            // que volverá a entrar a Attacking inmediatamente al estar en rango.
+            return;
+        }
+
+        // Comportamiento clásico: el jugador escapó → walk-back con cooldown.
         attackCooldownTimer = diff != null ? diff.attackCooldown : 2.5f;
         postAttackWalkTimer = diff != null ? diff.postAttackWalkSeconds : 4f;
-        // Salimos inmediatamente del ataque al patrullaje (walk) — no persigue ni corre.
         if (CurrentState == State.Attacking || CurrentState == State.Chase)
             SetState(State.Patrol);
     }
@@ -517,58 +753,104 @@ public class EnemyAIBase : MonoBehaviour
         else
             farFromPlayerTimer = 0f;
 
+        // ── Timer "stuck" (lleva X s sin abandonar un radio pequeño) ───────
+        // Solo cuenta si NO está atacando (ya validado arriba) y NO está pegado al jugador
+        // (si está atacando o muy cerca, quedarse quieto es normal).
+        if (!stuckInit) { stuckAnchor = transform.position; stuckInit = true; stuckTimer = 0f; }
+        bool closeToPlayer = distToPlayer <= safetyDistance + 1f;
+        if (closeToPlayer)
+        {
+            stuckTimer = 0f;
+            stuckAnchor = transform.position;
+        }
+        else if (Vector3.Distance(transform.position, stuckAnchor) > stuckRadius)
+        {
+            stuckAnchor = transform.position;
+            stuckTimer = 0f;
+        }
+        else
+        {
+            stuckTimer += Time.deltaTime;
+        }
+
         // ── Triggers ────────────────────────────────────────────────────────
         bool noSightTrigger = diff.noSightRespawnSeconds > 0f && noSightTimer       >= diff.noSightRespawnSeconds;
         bool farTrigger     = diff.farFromPlayerSeconds  > 0f && farFromPlayerTimer >= diff.farFromPlayerSeconds;
+        // Stuck: SIEMPRE activo (incluso en Easy) — su propósito es desencallar al bicho.
+        bool stuckTrigger   = stuckRespawnSeconds > 0f && stuckTimer >= stuckRespawnSeconds;
 
-        if (noSightTrigger || farTrigger)
+        if (noSightTrigger || farTrigger || stuckTrigger)
         {
             float desired = diff.forcedRespawnDistance > 0f ? diff.forcedRespawnDistance : diff.postRoomSpawnDistance;
+            // Si solo dispara el stuck (no hay distancia configurada para "lejos"),
+            // usamos forcedRespawnDistance o un valor sano por defecto.
+            if (stuckTrigger && desired <= 0f) desired = 20f;
+            // Garantiza que la distancia deseada está fuera del radio seguro (si no,
+            // el sampler descartaría todos los candidatos por la zona prohibida).
+            desired = Mathf.Max(desired, minSafeRespawnRadius + 1f);
             if (TryForcedRespawnNearPlayer(desired))
             {
                 noSightTimer = 0f;
                 farFromPlayerTimer = 0f;
+                stuckTimer = 0f;
+                stuckAnchor = transform.position;
                 forcedRespawnCooldownTimer = forcedRespawnCooldown;
             }
         }
     }
 
     /// <summary>
-    /// Samplea N puntos del NavMesh sobre un anillo de radio ~desiredDistance alrededor
-    /// del jugador y se queda con el más cercano a la distancia ideal dentro de la tolerancia.
-    /// Evita escoger puntos visibles desde la cámara del jugador para no romper la inmersión.
+    /// Samplea N puntos XZ del NavMesh alrededor del jugador (centrados en
+    /// (playerX, <see cref="forcedRespawnY"/>, playerZ)) y se queda con el más cercano a
+    /// la distancia ideal. Tras escoger un punto, el Warp queda fijado a Y=forcedRespawnY
+    /// (típicamente la cota del navmesh superior del mapa, p.ej. una pasarela elevada).
+    /// Descarta puntos visibles para la cámara del jugador para no romper la inmersión.
     /// </summary>
     bool TryForcedRespawnNearPlayer(float desiredDistance)
     {
         if (player == null) return false;
 
         Vector3 playerPos = player.position;
+        // Centro de búsqueda: misma XZ que el jugador, pero a la altura forzada del respawn.
+        Vector3 searchCenter = new Vector3(playerPos.x, forcedRespawnY, playerPos.z);
+
         Camera playerCam = Camera.main; // para descartar puntos visibles
         float bestDelta = float.PositiveInfinity;
         Vector3 bestPoint = transform.position;
         bool found = false;
 
         int samples = Mathf.Max(4, forcedRespawnSamples);
+        float sampleTol = Mathf.Max(forcedRespawnVerticalTolerance, forcedRespawnTolerance);
         for (int i = 0; i < samples; i++)
         {
             // Distribución en anillo: ángulo aleatorio + radio dentro de la tolerancia.
             float angle = Random.value * Mathf.PI * 2f;
             float radius = desiredDistance + Random.Range(-forcedRespawnTolerance, forcedRespawnTolerance);
             radius = Mathf.Max(2f, radius);
-            Vector3 candidate = playerPos + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+            // Candidato a la altura del navmesh superior.
+            Vector3 candidate = searchCenter + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
 
-            if (!NavMesh.SamplePosition(candidate, out var hit, Mathf.Max(2f, forcedRespawnTolerance), NavMesh.AllAreas))
+            if (!NavMesh.SamplePosition(candidate, out var hit, sampleTol, NavMesh.AllAreas))
                 continue;
+
+            // Punto final del respawn: XZ del sample del NavMesh, Y forzada a forcedRespawnY
+            // (criterio del owner: queremos que SIEMPRE caiga en la cota superior del mapa).
+            Vector3 finalPoint = new Vector3(hit.position.x, forcedRespawnY, hit.position.z);
 
             // Descartar puntos directamente visibles para el jugador (evita "pop" en pantalla).
-            if (playerCam != null && IsPointVisibleToCamera(hit.position + Vector3.up * 1.5f, playerCam))
+            if (playerCam != null && IsPointVisibleToCamera(finalPoint + Vector3.up * 1.5f, playerCam))
                 continue;
 
-            float delta = Mathf.Abs(Vector3.Distance(hit.position, playerPos) - desiredDistance);
+            // Métrica: distancia XZ al jugador respecto a la deseada.
+            Vector2 dXZ = new Vector2(finalPoint.x - playerPos.x, finalPoint.z - playerPos.z);
+            float distXZ = dXZ.magnitude;
+            // Zona prohibida: descartar cualquier candidato dentro del radio seguro.
+            if (minSafeRespawnRadius > 0f && distXZ < minSafeRespawnRadius) continue;
+            float delta = Mathf.Abs(distXZ - desiredDistance);
             if (delta < bestDelta)
             {
                 bestDelta = delta;
-                bestPoint = hit.position;
+                bestPoint = finalPoint;
                 found = true;
             }
         }
@@ -576,6 +858,11 @@ public class EnemyAIBase : MonoBehaviour
         if (!found) return false;
 
         Agent.Warp(bestPoint);
+        // Warp puede snapear al NavMesh y bajar la Y. Forzamos Y=forcedRespawnY SIEMPRE
+        // (criterio owner: el TP debe quedar en la cota superior, nunca en partes bajas del navmesh).
+        var pos = transform.position;
+        pos.y = forcedRespawnY;
+        transform.position = pos;
         KnownPlayerPos = null;
         chaseMemoryTimer = 0f;
 
@@ -694,7 +981,29 @@ public class EnemyAIBase : MonoBehaviour
 
     public void Teleport(Vector3 pos)
     {
+        // TP del minotauro: la Y se fuerza a forcedRespawnY para que SIEMPRE caiga en la
+        // cota superior del mapa (suelo del navmesh elevado), nunca en partes bajas.
+        pos.y = forcedRespawnY;
+        // Zona prohibida: si el punto solicitado cae dentro del radio seguro del jugador,
+        // lo empujamos hacia fuera en línea recta.
+        if (player != null && minSafeRespawnRadius > 0f)
+        {
+            Vector3 fromPlayer = pos - player.position; fromPlayer.y = 0f;
+            float d = fromPlayer.magnitude;
+            if (d < minSafeRespawnRadius)
+            {
+                Vector3 dir = d > 0.01f ? fromPlayer / d : (transform.position - player.position).normalized;
+                if (dir.sqrMagnitude < 0.01f) dir = Vector3.forward;
+                Vector3 pushed = player.position + dir * (minSafeRespawnRadius + 1f);
+                pushed.y = forcedRespawnY;
+                if (UnityEngine.AI.NavMesh.SamplePosition(pushed, out var hit, 5f, UnityEngine.AI.NavMesh.AllAreas))
+                    pos = new Vector3(hit.position.x, forcedRespawnY, hit.position.z);
+                else
+                    pos = pushed;
+            }
+        }
         Agent.Warp(pos);
+        var p = transform.position; p.y = forcedRespawnY; transform.position = p;
     }
 
     public bool IsChasing => CurrentState == State.Chase || CurrentState == State.Attacking;

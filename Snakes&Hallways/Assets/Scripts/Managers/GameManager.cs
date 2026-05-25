@@ -1,19 +1,31 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public enum GameState { Playing, Paused, GameOver, Win }
 
+/// <summary>
+/// Estado global de la run. Responsabilidades:
+///   - Timer + estado (Playing/Paused/GameOver/Win) + eventos.
+///   - Spawn de pickups: al iniciar la run busca TODOS los Pickup en escena y deja
+///     activos solo los necesarios según la dificultad (apaga el resto al azar).
+///   - Limpieza ligera al terminar la run (EndRun).
+///
+/// NO se encarga de:
+///   - Cargar SCN_DeathScene ni reproducir música GameOver  → DefeatManager
+///   - Cargar SCN_EndingScene ni reproducir música Win      → WinCollider + SceneMusicController
+///   - Activar el portal                                     → eliminado (PortalManager obsoleto)
+/// </summary>
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
     [Header("Timer")]
-    [Tooltip("Tiempo inicial de partida (segundos). Se copia a 'currentTime' al empezar la run.")]
+    [Tooltip("Tiempo inicial de partida (segundos). Solo se usa como fallback si DifficultyManager no está presente.")]
     [SerializeField] float matchTime = 600f;
     [Tooltip("Tiempo actual restante (segundos). Editable en runtime desde el inspector.")]
     [SerializeField] float currentTime;
-    [SerializeField] string winScene = "Win";
 
     [Header("Run")]
     [Tooltip("Nombre de la escena de gameplay. Al cargarla se arranca la run; al salir se resetea.")]
@@ -23,10 +35,17 @@ public class GameManager : MonoBehaviour
     [SerializeField] Transform player;
     public Transform Player => player;
 
+    // ── Pickups ────────────────────────────────────────────────────────────
+    // Toda la lógica de activación/spawn de pickups vive ahora en PickupManager
+    // (incluido el mandatoryPickup). GameManager solo cuenta y emite eventos.
+    public IReadOnlyList<Pickup> AllScenePickups =>
+        PickupManager.Instance != null ? PickupManager.Instance.AllScenePickups : System.Array.Empty<Pickup>();
+
     public GameState State { get; private set; } = GameState.Playing;
     public float TimeRemaining { get => currentTime; private set => currentTime = value; }
     public int PickupsCollected { get; private set; }
     public int PickupsRequired { get; private set; }
+    public int PickupsActiveInScene => PickupManager.Instance != null ? PickupManager.Instance.PickupsActiveInScene : 0;
     public bool RunActive { get; private set; }
     public bool UnlimitedTime { get; private set; }
 
@@ -46,7 +65,6 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        // Si arrancamos directamente en la escena de gameplay (sin pasar por intro), inicia la run.
         if (SceneManager.GetActiveScene().name == gameplaySceneName) BeginRun();
         else ResetRun();
     }
@@ -90,14 +108,17 @@ public class GameManager : MonoBehaviour
             var go = GameObject.FindGameObjectWithTag("Player");
             if (go != null) player = go.transform;
         }
-        var playerHealth = player != null
-            ? player.GetComponentInChildren<PlayerHealth>()
-            : FindFirstObjectByType<PlayerHealth>();
-        if (playerHealth != null)
-        {
-            playerHealth.OnDied -= TriggerGameOver;
-            playerHealth.OnDied += TriggerGameOver;
-        }
+        // OJO: DefeatManager YA escucha PlayerHealth.OnDied por su lado.
+        // No lo duplicamos aquí — GameManager solo emite OnStateChanged.
+
+        // La activación de pickups en escena la hace PickupManager. La llamamos
+        // DIRECTAMENTE aquí (en vez de depender de su propio sceneLoaded) para garantizar
+        // el orden: primero GameManager fija PickupsRequired, luego PickupManager activa
+        // pickups y reescribe PickupsRequired con el número REAL activado, todo en el
+        // mismo frame. Sin esto, una race entre ambos handlers dejaba el portal sin
+        // encenderse cuando collected != required teórico.
+        if (PickupManager.Instance != null)
+            PickupManager.Instance.BeginRun();
 
         OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
         OnTimerChanged?.Invoke(TimeRemaining);
@@ -117,14 +138,51 @@ public class GameManager : MonoBehaviour
         OnStateChanged?.Invoke(State);
     }
 
+    /// <summary>
+    /// Lo invoca <see cref="PickupManager"/> después de activar pickups en escena para
+    /// AJUSTAR PickupsRequired al número de pickups REALMENTE activos. Sin esto, si la
+    /// escena tiene menos pickups que los que pide la dificultad, el portal NUNCA se
+    /// encendía (collected nunca llegaba a required).
+    /// </summary>
+    public void SetPickupsRequired(int actualActive)
+    {
+        if (actualActive <= 0) return;
+        PickupsRequired = actualActive;
+        OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
+    }
+
     public void RegisterPickup()
     {
         if (!RunActive || State != GameState.Playing) return;
         PickupsCollected++;
         OnPickupCountChanged?.Invoke(PickupsCollected, PickupsRequired);
         AudioManager.Instance?.PlaySFX2D(SFXId.Pickup, Mathf.Lerp(0.8f, 1.2f, (float)PickupsCollected / Mathf.Max(1, PickupsRequired)));
-        if (PickupsCollected >= PickupsRequired) PortalManager.Instance?.ActivatePortal();
+
+        // Activación DIRECTA del portal cuando se llega al objetivo. No dependemos del
+        // evento OnPickupCountChanged (que WinCollider podría perderse si su GameObject
+        // está SetActive(false) en escena hasta el momento de activarse).
+        if (AllPickupsCollected) TryActivateAllPortals();
     }
+
+    /// <summary>
+    /// Busca TODOS los WinCollider (incluso los inactivos) y les pide que se enciendan.
+    /// Robusto frente a portales que se mantienen inactivos hasta el final de la run.
+    /// </summary>
+    void TryActivateAllPortals()
+    {
+        var portals = FindObjectsByType<WinCollider>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (portals == null || portals.Length == 0)
+        {
+            Debug.LogWarning("[GameManager] AllPickupsCollected pero no se encontró ningún WinCollider en escena.");
+            return;
+        }
+        for (int i = 0; i < portals.Length; i++)
+        {
+            if (portals[i] != null) portals[i].ActivatePortal();
+        }
+    }
+
+    public bool AllPickupsCollected => PickupsRequired > 0 && PickupsCollected >= PickupsRequired;
 
     public void Pause(bool paused)
     {
@@ -135,59 +193,42 @@ public class GameManager : MonoBehaviour
         OnStateChanged?.Invoke(State);
     }
 
+    /// <summary>
+    /// Solo cambia estado a GameOver y emite el evento. La gestión completa
+    /// (música, fade, carga de SCN_DeathScene) la hace DefeatManager escuchando
+    /// OnStateChanged o suscrito a PlayerHealth.OnDied directamente.
+    /// </summary>
     public void TriggerGameOver()
     {
         if (State == GameState.GameOver) return;
         State = GameState.GameOver;
         EndRun(won: false);
-        AudioManager.Instance?.PlayMusic(MusicId.GameOver);
         OnStateChanged?.Invoke(State);
-        // La carga de SCN_DeathScene es responsabilidad EXCLUSIVA de DefeatManager.
-        // Si no existe, no se carga nada (evita rutas duplicadas a la escena de muerte).
-        DefeatManager.Instance?.TriggerDefeat();
     }
 
+    /// <summary>
+    /// Solo cambia estado a Win y emite el evento. El cambio de escena y el fade
+    /// los dispara WinCollider. La música de la ending la pone SceneMusicController
+    /// al cargar SCN_EndingScene.
+    /// </summary>
     public void TriggerWin()
     {
         if (State == GameState.Win) return;
         State = GameState.Win;
         EndRun(won: true);
-        AudioManager.Instance?.PlayMusic(MusicId.Win);
         OnStateChanged?.Invoke(State);
-        if (VictoryManager.Instance == null)
-            SceneTransition.Instance?.FadeAndLoad(winScene, 2f);
     }
 
     /// <summary>
-    /// Limpieza centralizada al terminar una partida (victoria o derrota).
-    /// Mata loops de audio, resetea contadores y deja a los managers persistentes
-    /// (GameManager, DifficultyManager, AudioManager, …) en un estado limpio para
-    /// la próxima run sin necesidad de recargar la escena del menú.
-    /// Llamado automáticamente desde TriggerWin/TriggerGameOver.
+    /// Limpieza ligera al terminar la run. Aborta hint loop del minotauro y resetea contadores.
+    /// La música la matan DefeatManager / SceneMusicController según corresponda.
     /// </summary>
     public void EndRun(bool won)
     {
         RunActive = false;
-        // No tocamos Time.timeScale aquí — los managers de Win/Defeat lo manejan.
 
-        // Para los managers de gameplay que tienen su propio ResetRun(), llámalo.
-        // Nota: PickupManager y PortalManager solo viven en la escena de gameplay; si la
-        // estamos abandonando vía fade-and-load, igualmente conviene limpiarlos por si
-        // siguen vivos en cache de DontDestroyOnLoad o por re-entradas rápidas.
-        try { PickupManager.Instance?.ResetRun(); } catch { /* ignore */ }
-        try { PortalManager.Instance?.ResetRun(); } catch { /* ignore */ }
-
-        // Audio: corta loops del minotauro/jugador y la música actual.
-        var am = AudioManager.Instance;
-        if (am != null)
-        {
-            am.StopMusic(0.8f);
-            // Los AudioSource locales (steps, breath, idle breath) se destruyen con
-            // la escena de gameplay. Pero StopMusic resetea el track global.
-        }
-
-        // Si el inteligente sigue suelto, mátalo para que no siga lanzando hints/
-        // teleports tras la pantalla de fin.
+        // Si el inteligente sigue suelto, deshabilítalo para que no siga lanzando
+        // hints/teleports tras la pantalla de fin.
         var brain = EnemyAIInteligent.Instance;
         if (brain != null) brain.enabled = false;
 

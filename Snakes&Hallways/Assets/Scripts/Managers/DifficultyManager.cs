@@ -42,6 +42,10 @@ public class DifficultySettings
     public float farFromPlayerSeconds = 0f;
     [Tooltip("Distancia ideal alrededor del jugador donde aparece el minotauro tras un respawn forzado. Se reutiliza postRoomSpawnDistance si esto es <= 0.")]
     public float forcedRespawnDistance = 0f;
+
+    [Header("Detection")]
+    [Tooltip("Multiplicador aplicado a EnemyDetection.baseProximityRadius (radio de detección OMNIDIRECCIONAL). Escala con dificultad y pickups (vía runtime lerp). 1 = sin cambio.")]
+    public float proximityRadiusMul = 1f;
 }
 
 public class DifficultyManager : MonoBehaviour
@@ -49,10 +53,10 @@ public class DifficultyManager : MonoBehaviour
     public static DifficultyManager Instance { get; private set; }
 
     [SerializeField] Difficulty current = Difficulty.Medium;
-    [SerializeField] DifficultySettings easy       = new() { level = Difficulty.Easy,       pickupsRequired = 4,  baseAggression = 0.1f,  omniscience = 0f,    roomSpawnChance = 0.05f, postRoomSpawnDistance = 60f, soundReactivity = 0f,    chaseSpeedMul = 0.85f, hintFrequencyMul = 0.5f, chaseMemorySeconds = 1.5f, hintIgnoreChance = 0.7f, attackCooldown = 4f,   postAttackWalkSeconds = 6f, matchTimeSeconds = 0f,    noSightRespawnSeconds = 0f,   farFromPlayerDistance = 0f,  farFromPlayerSeconds = 0f,  forcedRespawnDistance = 0f  };
-    [SerializeField] DifficultySettings medium     = new() { level = Difficulty.Medium,     pickupsRequired = 6,  baseAggression = 0.35f, omniscience = 0.1f,  roomSpawnChance = 0.2f,  postRoomSpawnDistance = 35f, soundReactivity = 0.5f,  chaseSpeedMul = 1f,    hintFrequencyMul = 1f,   chaseMemorySeconds = 3f,   hintIgnoreChance = 0.4f, attackCooldown = 3f,   postAttackWalkSeconds = 4f, matchTimeSeconds = 1500f, noSightRespawnSeconds = 90f,  farFromPlayerDistance = 60f, farFromPlayerSeconds = 30f, forcedRespawnDistance = 35f };
-    [SerializeField] DifficultySettings hard       = new() { level = Difficulty.Hard,       pickupsRequired = 8,  baseAggression = 0.6f,  omniscience = 0.35f, roomSpawnChance = 0.35f, postRoomSpawnDistance = 18f, soundReactivity = 0.85f, chaseSpeedMul = 1.15f, hintFrequencyMul = 1.6f, chaseMemorySeconds = 5f,   hintIgnoreChance = 0.15f, attackCooldown = 2f,   postAttackWalkSeconds = 2f, matchTimeSeconds = 1200f, noSightRespawnSeconds = 45f,  farFromPlayerDistance = 35f, farFromPlayerSeconds = 18f, forcedRespawnDistance = 20f };
-    [SerializeField] DifficultySettings impossible = new() { level = Difficulty.Impossible, pickupsRequired = 10, baseAggression = 1f,    omniscience = 1f,    roomSpawnChance = 0.6f,  postRoomSpawnDistance = 8f,  soundReactivity = 1f,    chaseSpeedMul = 1.3f,  hintFrequencyMul = 2.5f, chaseMemorySeconds = 8f,   hintIgnoreChance = 0f,    attackCooldown = 1f,   postAttackWalkSeconds = 0.5f, matchTimeSeconds = 600f,  noSightRespawnSeconds = 20f,  farFromPlayerDistance = 18f, farFromPlayerSeconds = 8f,  forcedRespawnDistance = 10f };
+    [SerializeField] DifficultySettings easy       = new() { level = Difficulty.Easy,       pickupsRequired = 4,  baseAggression = 0.1f,  omniscience = 0f,    roomSpawnChance = 0.05f, postRoomSpawnDistance = 60f, soundReactivity = 0f,    chaseSpeedMul = 0.85f, hintFrequencyMul = 0.5f, chaseMemorySeconds = 1.5f, hintIgnoreChance = 0.7f, attackCooldown = 4f,   postAttackWalkSeconds = 6f, matchTimeSeconds = 0f,    noSightRespawnSeconds = 120f, farFromPlayerDistance = 50f, farFromPlayerSeconds = 30f, forcedRespawnDistance = 40f, proximityRadiusMul = 1f    };
+    [SerializeField] DifficultySettings medium     = new() { level = Difficulty.Medium,     pickupsRequired = 6,  baseAggression = 0.35f, omniscience = 0.1f,  roomSpawnChance = 0.2f,  postRoomSpawnDistance = 35f, soundReactivity = 0.5f,  chaseSpeedMul = 1f,    hintFrequencyMul = 1f,   chaseMemorySeconds = 3f,   hintIgnoreChance = 0.4f, attackCooldown = 3f,   postAttackWalkSeconds = 4f, matchTimeSeconds = 1500f, noSightRespawnSeconds = 90f,  farFromPlayerDistance = 40f, farFromPlayerSeconds = 20f, forcedRespawnDistance = 30f, proximityRadiusMul = 1.5f  };
+    [SerializeField] DifficultySettings hard       = new() { level = Difficulty.Hard,       pickupsRequired = 8,  baseAggression = 0.6f,  omniscience = 0.35f, roomSpawnChance = 0.35f, postRoomSpawnDistance = 18f, soundReactivity = 0.85f, chaseSpeedMul = 1.15f, hintFrequencyMul = 1.6f, chaseMemorySeconds = 5f,   hintIgnoreChance = 0.15f, attackCooldown = 2f,   postAttackWalkSeconds = 2f, matchTimeSeconds = 1200f, noSightRespawnSeconds = 60f,  farFromPlayerDistance = 30f, farFromPlayerSeconds = 15f, forcedRespawnDistance = 22f, proximityRadiusMul = 2.2f  };
+    [SerializeField] DifficultySettings impossible = new() { level = Difficulty.Impossible, pickupsRequired = 10, baseAggression = 1f,    omniscience = 1f,    roomSpawnChance = 0.6f,  postRoomSpawnDistance = 8f,  soundReactivity = 1f,    chaseSpeedMul = 1.3f,  hintFrequencyMul = 2.5f, chaseMemorySeconds = 8f,   hintIgnoreChance = 0f,    attackCooldown = 1f,   postAttackWalkSeconds = 0.5f, matchTimeSeconds = 600f,  noSightRespawnSeconds = 30f,  farFromPlayerDistance = 18f, farFromPlayerSeconds = 8f,  forcedRespawnDistance = 12f, proximityRadiusMul = 3.5f  };
 
     public Difficulty Current => current;
 
@@ -158,6 +162,7 @@ public class DifficultyManager : MonoBehaviour
             farFromPlayerDistance = LerpRespawnDistance(baseS.farFromPlayerDistance, capS.farFromPlayerDistance, t),
             farFromPlayerSeconds  = LerpRespawnSeconds(baseS.farFromPlayerSeconds,  capS.farFromPlayerSeconds,  t),
             forcedRespawnDistance = LerpRespawnDistance(baseS.forcedRespawnDistance, capS.forcedRespawnDistance, t),
+            proximityRadiusMul    = Mathf.Lerp(baseS.proximityRadiusMul,    capS.proximityRadiusMul,    t),
         };
     }
 

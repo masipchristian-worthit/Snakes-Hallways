@@ -10,6 +10,7 @@ TagManager:
   - EnemyAttack
   - Interactable
   - Enemy
+  - Portal
   layers:
   - Default
   - TransparentFX
@@ -23,7 +24,7 @@ TagManager:
   - PickUp
   - Hand
   - Viewmodel
-  - 
+  - Scenario
   - 
   - 
   - 

@@ -44,7 +44,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e1c5699aa1d8ba4690d8c55ca6c2b52, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
-  autoBootstrapFromResources: 1
   sfxGroup: {fileID: 0}
   musicGroup: {fileID: 0}
   sfxFolder: Audio/SFX
@@ -176,6 +175,12 @@ MonoBehaviour:
   - id: 28
     variants:
     - {fileID: 8300000, guid: dc13f39c6e6bc4c49ab56fae2c5a3256, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
+  - id: 29
+    variants:
+    - {fileID: 8300000, guid: 4456e355540ae954189f512f8ab1b34f, type: 3}
     volume: 1
     minPitch: 0.95
     maxPitch: 1.05

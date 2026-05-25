@@ -20,6 +20,12 @@ public class EnemyDetection : MonoBehaviour
     [SerializeField] LayerMask occluderMask;
     [SerializeField] string playerTag = "Player";
 
+    [Header("Proximity (omnidireccional)")]
+    [Tooltip("Radio base de detección OMNIDIRECCIONAL (sin cono, sin LoS). Si el jugador entra → se considera detectado. Escalado por dificultad/pickups vía DifficultyManager. 0 = desactivado.")]
+    [SerializeField] float baseProximityRadius = 3f;
+    [Tooltip("Si está activo, la detección por proximidad respeta occluders (raycast). Si false, atraviesa paredes (recomendado false: es un 'sexto sentido').")]
+    [SerializeField] bool proximityRequiresLoS = false;
+
     public Transform Eye => eye;
 
     [Header("Detection scoring")]
@@ -93,6 +99,27 @@ public class EnemyDetection : MonoBehaviour
         HasLineOfSight = false;
         Vector3 to = player.position + Vector3.up * 1.4f - eye.position;
         float dist = to.magnitude;
+
+        // ── Detección omnidireccional por proximidad ───────────────────────
+        // Radio efectivo = base * multiplicador de dificultad/pickups.
+        float proximity = baseProximityRadius * ResolveProximityMul();
+        if (proximity > 0f && dist <= proximity)
+        {
+            bool blocked = false;
+            if (proximityRequiresLoS && dist > 0.01f)
+            {
+                Vector3 dir2 = to / dist;
+                blocked = Physics.Raycast(eye.position, dir2, dist, occluderMask, QueryTriggerInteraction.Ignore);
+            }
+            if (!blocked)
+            {
+                HasLineOfSight = true;
+                Visibility = DetectionVisibility.Frontside;
+                return;
+            }
+        }
+
+        // ── Cono de visión clásico ──────────────────────────────────────────
         if (dist > viewDistance) return;
         Vector3 dir = to / dist;
         float angle = Vector3.Angle(eye.forward, dir);
@@ -105,6 +132,15 @@ public class EnemyDetection : MonoBehaviour
         float facing = Vector3.Dot(eye.forward, player.forward);
         // facing > 0 → player and enemy look the same direction → enemy sees player's BACK.
         Visibility = facing > 0.2f ? DetectionVisibility.Backside : DetectionVisibility.Frontside;
+    }
+
+    /// <summary>Mul (escala el radio base) según dificultad + pickups recogidos.</summary>
+    float ResolveProximityMul()
+    {
+        var dm = DifficultyManager.Instance;
+        if (dm == null) return 1f;
+        var diff = dm.GetRuntimeSettings();
+        return diff != null && diff.proximityRadiusMul > 0f ? diff.proximityRadiusMul : 1f;
     }
 
     void UpdateScore()

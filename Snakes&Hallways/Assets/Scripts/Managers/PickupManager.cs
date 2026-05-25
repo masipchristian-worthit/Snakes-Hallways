@@ -1,25 +1,28 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Único responsable de qué pickups están activos durante una run.
+///
+/// Política (un solo path para evitar duplicaciones con GameManager):
+///   - Al cargar la escena de gameplay busca TODOS los Pickup en escena (incluso inactivos).
+///   - Activa el <see cref="mandatoryPickup"/> SIEMPRE (cuenta como uno de los requeridos).
+///   - Del resto, baraja y activa los necesarios para llegar a PickupsRequired (dificultad).
+///   - El resto quedan SetActive(false).
+///
+/// GameManager solo lleva el contador (PickupsCollected/PickupsRequired) y emite eventos.
+/// </summary>
 public class PickupManager : MonoBehaviour
 {
     public static PickupManager Instance { get; private set; }
 
-    [Header("Run")]
-    [Tooltip("Solo spawnea pickups cuando esta escena está activa.")]
-    [SerializeField] string gameplaySceneName = "SCN_Labe";
+    [Header("Mandatory pickup")]
+    [Tooltip("Pickup OBLIGATORIO. Nunca se apaga; SIEMPRE aparece en la run y cuenta dentro de PickupsRequired.")]
+    [SerializeField] Pickup mandatoryPickup;
 
-    [Header("Candidate spawn points (transforms in scene).")]
-    [SerializeField] List<Transform> candidatePoints = new();
-    [Header("Pickup prefab (instantiated at chosen points).")]
-    [SerializeField] Pickup pickupPrefab;
-
-    [Header("If true, treat candidatePoints as already-placed Pickup GameObjects and just enable a subset.")]
-    [SerializeField] bool useExistingPickups = false;
-    [SerializeField] List<Pickup> existingPickups = new();
-
-    readonly List<Pickup> spawned = new();
+    readonly List<Pickup> allScenePickups = new();
+    public IReadOnlyList<Pickup> AllScenePickups => allScenePickups;
+    public int PickupsActiveInScene { get; private set; }
 
     void Awake()
     {
@@ -27,59 +30,96 @@ public class PickupManager : MonoBehaviour
         Instance = this;
     }
 
-    void OnEnable()  => SceneManager.sceneLoaded += HandleSceneLoaded;
-    void OnDisable() => SceneManager.sceneLoaded -= HandleSceneLoaded;
-
-    void Start()
-    {
-        if (SceneManager.GetActiveScene().name == gameplaySceneName) BeginRun();
-        else ResetRun();
-    }
-
-    void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        if (scene.name == gameplaySceneName) BeginRun();
-        else ResetRun();
-    }
+    // NOTA: ya no nos suscribimos a SceneManager.sceneLoaded. El GameManager nos llama
+    // directamente desde su BeginRun() para garantizar el orden (PickupsRequired se
+    // ajusta DESPUÉS de activar pickups). Mantenemos BeginRun/ResetRun públicos.
 
     public void BeginRun()
     {
-        ResetRun();
-        // El número de pickups proviene SIEMPRE de la dificultad activa.
         int required = DifficultyManager.Instance ? DifficultyManager.Instance.GetSettings().pickupsRequired : 6;
-        SpawnPickups(required);
+        SetupScenePickups(required);
     }
 
     public void ResetRun()
     {
-        for (int i = 0; i < spawned.Count; i++)
-            if (spawned[i] != null) Destroy(spawned[i].gameObject);
-        spawned.Clear();
-
-        if (useExistingPickups)
-            for (int i = 0; i < existingPickups.Count; i++)
-                if (existingPickups[i] != null) existingPickups[i].SetActiveCandidate(false);
+        allScenePickups.Clear();
+        PickupsActiveInScene = 0;
     }
 
-    void SpawnPickups(int amount)
+    /// <summary>
+    /// Activa exactamente <paramref name="required"/> pickups en la escena:
+    /// el mandatorio siempre + (required-1) aleatorios del resto. El resto se apagan.
+    /// </summary>
+    void SetupScenePickups(int required)
     {
-        if (useExistingPickups)
+        allScenePickups.Clear();
+
+        var all = FindObjectsByType<Pickup>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (all == null || all.Length == 0)
         {
-            Shuffle(existingPickups);
-            for (int i = 0; i < existingPickups.Count; i++)
-                if (existingPickups[i] != null) existingPickups[i].SetActiveCandidate(i < amount);
+            PickupsActiveInScene = 0;
             return;
         }
+        allScenePickups.AddRange(all);
 
-        if (pickupPrefab == null || candidatePoints.Count == 0) return;
-        var picked = new List<Transform>(candidatePoints);
-        Shuffle(picked);
-        amount = Mathf.Min(amount, picked.Count);
-        for (int i = 0; i < amount; i++)
+        bool hasMandatory = mandatoryPickup != null && allScenePickups.Contains(mandatoryPickup);
+        if (mandatoryPickup != null && !hasMandatory)
+            Debug.LogWarning($"[PickupManager] mandatoryPickup '{mandatoryPickup.name}' no está en la escena activa. Se ignora.", this);
+
+        var candidates = new List<Pickup>(allScenePickups.Count);
+        for (int i = 0; i < allScenePickups.Count; i++)
         {
-            var p = Instantiate(pickupPrefab, picked[i].position, picked[i].rotation);
-            spawned.Add(p);
+            if (allScenePickups[i] == null) continue;
+            if (hasMandatory && allScenePickups[i] == mandatoryPickup) continue;
+            candidates.Add(allScenePickups[i]);
         }
+
+        Shuffle(candidates);
+
+        int reserved = hasMandatory ? 1 : 0;
+        int activateFromCandidates = Mathf.Clamp(required - reserved, 0, candidates.Count);
+
+        if (hasMandatory) mandatoryPickup.gameObject.SetActive(true);
+        for (int i = 0; i < candidates.Count; i++)
+            candidates[i].gameObject.SetActive(i < activateFromCandidates);
+
+        PickupsActiveInScene = activateFromCandidates + reserved;
+
+        if (PickupsActiveInScene < required)
+            Debug.LogWarning($"[PickupManager] Escena con {allScenePickups.Count} pickups, dificultad pide {required}. Activados {PickupsActiveInScene}.", this);
+
+        // Comunicar a GameManager el número REAL de pickups activos para que PickupsRequired
+        // coincida (si la escena tiene menos pickups que la dificultad, sin esto el portal
+        // no se encendía nunca porque collected nunca llegaba al required teórico).
+        if (GameManager.Instance != null)
+            GameManager.Instance.SetPickupsRequired(PickupsActiveInScene);
+    }
+
+    // ── DEBUG / TESTING ─────────────────────────────────────────────────────
+    /// <summary>
+    /// Recoge instantáneamente TODOS los pickups activos de la escena. Útil para
+    /// testear el portal sin recorrer el mapa.
+    /// Cómo usar: en el inspector, click derecho sobre el componente PickupManager →
+    /// "Collect All Pickups (debug)".
+    /// </summary>
+    [ContextMenu("Collect All Pickups (debug)")]
+    public void DebugCollectAllPickups()
+    {
+        if (allScenePickups == null || allScenePickups.Count == 0)
+        {
+            Debug.LogWarning("[PickupManager] No hay pickups registrados aún. Inicia la run primero.", this);
+            return;
+        }
+        int collected = 0;
+        for (int i = 0; i < allScenePickups.Count; i++)
+        {
+            var p = allScenePickups[i];
+            if (p == null || !p.gameObject.activeInHierarchy) continue;
+            // Llama al mismo flujo que un OnTriggerEnter: registra en GameManager + desactiva.
+            p.InteractPickup();
+            collected++;
+        }
+        Debug.Log($"[PickupManager] DEBUG: recogidos {collected} pickups. PickupsCollected={GameManager.Instance?.PickupsCollected}, Required={GameManager.Instance?.PickupsRequired}.", this);
     }
 
     static void Shuffle<T>(IList<T> list)

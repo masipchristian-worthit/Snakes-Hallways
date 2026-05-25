@@ -10,9 +10,11 @@ using UnityEngine.SceneManagement;
 /// Asignación por defecto:
 ///   - SCN_MainMenu, SCN_Settings, SCN_Difficulty      → AmbienceCalm
 ///   - SCN_Introduction, SCN_Labe                       → AmbienceHorror
-///   - SCN_DeathScene                                   → GameOver
 ///   - SCN_EndingScene                                  → Win
 ///   - Resto                                            → sin cambios
+///
+/// NOTA: SCN_DeathScene NO se mapea aquí. La música de muerte la pone DefeatManager
+/// (es el responsable autoritativo de la derrota), evitando dobles llamadas a PlayMusic.
 /// </summary>
 [DefaultExecutionOrder(50)]
 public class SceneMusicController : MonoBehaviour
@@ -34,7 +36,7 @@ public class SceneMusicController : MonoBehaviour
         new SceneMusic { sceneName = "SCN_Difficulty",   music = MusicId.AmbienceCalm },
         new SceneMusic { sceneName = "SCN_Introduction", music = MusicId.AmbienceHorror },
         new SceneMusic { sceneName = "SCN_Labe",         music = MusicId.AmbienceHorror },
-        new SceneMusic { sceneName = "SCN_DeathScene",   music = MusicId.GameOver },
+        // SCN_DeathScene la maneja DefeatManager — no la añadas aquí o habrá doble PlayMusic.
         new SceneMusic { sceneName = "SCN_EndingScene",  music = MusicId.Win },
     };
 

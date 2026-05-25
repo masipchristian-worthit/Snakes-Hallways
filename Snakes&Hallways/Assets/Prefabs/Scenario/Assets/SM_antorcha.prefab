@@ -228,6 +228,7 @@ GameObject:
   - component: {fileID: 221403570456685007}
   - component: {fileID: 3307872239103933165}
   - component: {fileID: 1839085045480906868}
+  - component: {fileID: 8074143295223562690}
   m_Layer: 0
   m_Name: Fire
   m_TagString: Untagged
@@ -328,6 +329,21 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &8074143295223562690
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 972781189303918284}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd5c71fb5bc565b498ade6224195efa3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Billboard
+  target: {fileID: 0}
+  axis: 1
+  flip: 1
 --- !u!1 &1836029494218100349
 GameObject:
   m_ObjectHideFlags: 0
@@ -801,9 +817,9 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8817779787227703880}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.00000086426724, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -6.159, y: -3.66938, z: -16.984}
-  m_LocalScale: {x: 1.274, y: 1.274, z: 1.274}
+  m_LocalScale: {x: 1.7348893, y: 1.2160764, z: 1.9922174}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4573544222288100730}

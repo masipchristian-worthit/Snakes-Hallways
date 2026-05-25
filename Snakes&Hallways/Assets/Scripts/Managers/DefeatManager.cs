@@ -2,13 +2,14 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Único punto de entrada hacia SCN_DeathScene.
-/// - DontDestroyOnLoad: persiste entre escenas como singleton.
-/// - Solo arma listeners (PlayerHealth, GameManager state) en la escena de gameplay.
-/// - Al disparar derrota, hace fade a negro y carga SCN_DeathScene.
+/// AUTORIDAD ÚNICA de la derrota. GameManager solo cambia GameState a GameOver
+/// y emite OnStateChanged — DefeatManager lo escucha y se encarga de TODO lo demás:
+///  - música de muerte (PlayMusic GameOver)
+///  - fade-to-black + carga de SCN_DeathScene
+///  - liberar el cursor
 ///
-/// IMPORTANTE: ningún otro script debe cargar SCN_DeathScene directamente.
-/// GameManager.TriggerGameOver delega aquí.
+/// También se suscribe directamente a PlayerHealth.OnDied como atajo idempotente
+/// (el flag isDefeated evita doble disparo).
 /// </summary>
 public class DefeatManager : MonoBehaviour
 {
@@ -21,6 +22,12 @@ public class DefeatManager : MonoBehaviour
     [Header("Death scene")]
     [SerializeField] string deathSceneName = "SCN_DeathScene";
     [SerializeField] float fadeTime = 1.5f;
+
+    [Header("Audio")]
+    [Tooltip("Música que se reproduce al disparar la derrota. Default: GameOver. Si pones None no toca la música.")]
+    [SerializeField] MusicId deathMusic = MusicId.GameOver;
+    [Tooltip("Crossfade hacia la pista de muerte (segundos).")]
+    [SerializeField] float deathMusicFade = 0.8f;
 
     PlayerHealth playerHealth;
     bool isDefeated;
@@ -79,14 +86,21 @@ public class DefeatManager : MonoBehaviour
         isDefeated = false;
     }
 
-    void HandlePlayerDeath() => TriggerDefeat();
+    void HandlePlayerDeath()
+    {
+        // PlayerHealth murió directamente: empujamos el estado y dejamos que el chain habitual
+        // (OnStateChanged → TriggerDefeat) lo procese. Si GameManager no existe, hacemos
+        // TriggerDefeat directamente para no perder la derrota.
+        if (GameManager.Instance != null) GameManager.Instance.TriggerGameOver();
+        else TriggerDefeat();
+    }
 
     void HandleStateChanged(GameState s)
     {
         if (s == GameState.GameOver) TriggerDefeat();
     }
 
-    /// <summary>Carga SCN_DeathScene con fade. Idempotente.</summary>
+    /// <summary>Carga SCN_DeathScene con fade y arranca la música de muerte. Idempotente.</summary>
     public void TriggerDefeat()
     {
         if (isDefeated || !armed) return;
@@ -96,7 +110,9 @@ public class DefeatManager : MonoBehaviour
         Cursor.visible = true;
         Time.timeScale = 1f;
 
-        AudioManager.Instance?.PlayMusic(MusicId.GameOver);
+        if (deathMusic != MusicId.None)
+            AudioManager.Instance?.PlayMusic(deathMusic, deathMusicFade);
+
         SceneTransition.EnsureInstance()?.FadeAndLoad(deathSceneName, fadeTime);
     }
 }

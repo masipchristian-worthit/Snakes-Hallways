@@ -49,6 +49,11 @@ public class EnemyAnimator : MonoBehaviour
     [Tooltip("ID del sonido reproducido en pisadas de Run.")]
     [SerializeField] SFXId runStepSfx = SFXId.MinotaurStep;
 
+    [Header("Attack SFX (animation event)")]
+    [Tooltip("Sonido del swing del ataque del minotauro. Lo dispara el AnimationEvent 'AttackSfx' colocado en el frame de impacto.")]
+    [SerializeField] SFXId attackSfx = SFXId.MinotaurCharge;
+    [Range(0f, 1f)][SerializeField] float attackSfxVolume = 1f;
+
     [Tooltip("Se invoca al pisar caminando (Animation Event 'FootstepWalk'). Engánchalo a SFX, partículas, etc.")]
     public UnityEngine.Events.UnityEvent OnFootstepWalk;
     [Tooltip("Se invoca al pisar corriendo (Animation Event 'FootstepRun'). Engánchalo a SFX, partículas, etc.")]
@@ -77,5 +82,13 @@ public class EnemyAnimator : MonoBehaviour
         if (runStepSfx != SFXId.None)
             AudioManager.Instance?.PlaySFX(runStepSfx, transform.position);
         OnFootstepRun?.Invoke();
+    }
+
+    /// <summary>Animation Event: swing/impacto del ataque. Reproduce el SFX de ataque
+    /// (independiente del AttackFrame, que sólo aplica daño).</summary>
+    public void AttackSfx()
+    {
+        if (attackSfx != SFXId.None)
+            AudioManager.Instance?.PlaySFX(attackSfx, transform.position, attackSfxVolume);
     }
 }

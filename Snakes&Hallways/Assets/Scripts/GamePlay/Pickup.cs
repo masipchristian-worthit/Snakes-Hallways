@@ -15,12 +15,16 @@ public class Pickup : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
-        GameManager.Instance?.RegisterPickup();
         Collect();
     }
 
+    /// <summary>Llamado por PlayerController.TryInteract cuando el SphereCast del Interact apunta al pickup.</summary>
+    public void InteractPickup() => Collect();
+
     void Collect()
     {
+        if (!gameObject.activeSelf) return;       // evita doble registro (trigger + interact).
+        GameManager.Instance?.RegisterPickup();
         if (loopSource) loopSource.Stop();
         gameObject.SetActive(false);
     }

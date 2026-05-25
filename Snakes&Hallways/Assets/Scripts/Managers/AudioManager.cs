@@ -53,6 +53,7 @@ public enum SFXId
     UITextVoice        = 26,
     UIPause            = 27,
     UIUnpause          = 28,
+    PlayerDamage       = 29,   // SFX al recibir daño el jugador (PlayerHealth.TakeDamage)
 }
 
 public enum MusicId

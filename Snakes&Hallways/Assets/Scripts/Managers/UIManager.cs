@@ -83,6 +83,13 @@ public class UIManager : MonoBehaviour
             UpdatePickups(GameManager.Instance.PickupsCollected, GameManager.Instance.PickupsRequired);
             UpdateTimer(GameManager.Instance.TimeRemaining);
         }
+        // En dificultad Fácil NO hay límite de tiempo (matchTimeSeconds = 0 → UnlimitedTime),
+        // por tanto el marcador del timer no aporta nada → lo ocultamos.
+        if (timerText != null)
+        {
+            bool showTimer = GameManager.Instance == null || !GameManager.Instance.UnlimitedTime;
+            timerText.gameObject.SetActive(showTimer);
+        }
         ShowHUD(true);
     }
 

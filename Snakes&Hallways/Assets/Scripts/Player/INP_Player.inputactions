@@ -17,7 +17,8 @@
                 { "name": "Interact", "type": "Button", "id": "c1a23b00-1111-4000-aaaa-000000000002", "expectedControlType": "", "processors": "", "interactions": "", "initialStateCheck": false },
                 { "name": "Lamp", "type": "Button", "id": "c1a23b00-1111-4000-aaaa-000000000003", "expectedControlType": "", "processors": "", "interactions": "", "initialStateCheck": false },
                 { "name": "ToggleHand", "type": "Button", "id": "c1a23b00-1111-4000-aaaa-000000000004", "expectedControlType": "", "processors": "", "interactions": "", "initialStateCheck": false },
-                { "name": "SwitchCamera", "type": "Button", "id": "c1a23b00-1111-4000-aaaa-000000000005", "expectedControlType": "", "processors": "", "interactions": "", "initialStateCheck": false }
+                { "name": "SwitchCamera", "type": "Button", "id": "c1a23b00-1111-4000-aaaa-000000000005", "expectedControlType": "", "processors": "", "interactions": "", "initialStateCheck": false },
+                { "name": "Highlight", "type": "Button", "id": "c1a23b00-1111-4000-aaaa-000000000006", "expectedControlType": "", "processors": "", "interactions": "", "initialStateCheck": false }
             ],
             "bindings": [
                 { "name": "", "id": "1cd1f85e-46b4-4b4a-b8eb-dac1cebc56c1", "path": "<Gamepad>/leftStick", "interactions": "", "processors": "", "groups": "", "action": "Move", "isComposite": false, "isPartOfComposite": false },
@@ -47,7 +48,9 @@
                 { "name": "", "id": "b1a23b00-2222-4000-aaaa-000000000007", "path": "<Keyboard>/tab", "interactions": "", "processors": "", "groups": "", "action": "ToggleHand", "isComposite": false, "isPartOfComposite": false },
                 { "name": "", "id": "b1a23b00-2222-4000-aaaa-000000000008", "path": "<Gamepad>/select", "interactions": "", "processors": "", "groups": "", "action": "ToggleHand", "isComposite": false, "isPartOfComposite": false },
                 { "name": "", "id": "b1a23b00-2222-4000-aaaa-000000000009", "path": "<Keyboard>/c", "interactions": "", "processors": "", "groups": "", "action": "SwitchCamera", "isComposite": false, "isPartOfComposite": false },
-                { "name": "", "id": "b1a23b00-2222-4000-aaaa-00000000000a", "path": "<Gamepad>/dpad/down", "interactions": "", "processors": "", "groups": "", "action": "SwitchCamera", "isComposite": false, "isPartOfComposite": false }
+                { "name": "", "id": "b1a23b00-2222-4000-aaaa-00000000000a", "path": "<Gamepad>/dpad/down", "interactions": "", "processors": "", "groups": "", "action": "SwitchCamera", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "b1a23b00-2222-4000-aaaa-00000000000b", "path": "<Keyboard>/semicolon", "interactions": "", "processors": "", "groups": "", "action": "Highlight", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "b1a23b00-2222-4000-aaaa-00000000000c", "path": "<Gamepad>/leftShoulder", "interactions": "", "processors": "", "groups": "", "action": "Highlight", "isComposite": false, "isPartOfComposite": false }
             ]
         },
         {

@@ -12,6 +12,8 @@ GameObject:
   - component: {fileID: 4013468461041286819}
   - component: {fileID: 1177202041282988649}
   - component: {fileID: 7002253184726303160}
+  - component: {fileID: 4812556590080764480}
+  - component: {fileID: 349214788647472751}
   m_Layer: 12
   m_Name: SM_ParedPuerta
   m_TagString: Untagged
@@ -109,5 +111,47 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 4, y: 0.00000047684546, z: 4}
-  m_Center: {x: -0.00000023841858, y: 0, z: 0}
+  m_Size: {x: 4, y: 0.00000047684546, z: 1.3349977}
+  m_Center: {x: -0.00000023841858, y: 1.4746163e-12, z: -1.3325014}
+--- !u!65 &4812556590080764480
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 817050890793266108}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 4.000001, y: 0, z: 1.3294971}
+  m_Center: {x: 1.6345203e-16, y: -1.823102e-12, z: 1.3352512}
+--- !u!65 &349214788647472751
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 817050890793266108}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.7028159, y: 1.7808027e-13, z: 4}
+  m_Center: {x: -1.1485928, y: 1.7564377e-12, z: 1.5188828e-16}

@@ -23,11 +23,15 @@ public class CameraShake : MonoBehaviour
     [Tooltip("Potencia de la caída con la distancia (1 = lineal, 2 = cuadrática).")]
     [SerializeField] float falloffPower = 2f;
 
+    [Header("Tracked camera (opcional)")]
+    [Tooltip("Cámara que recibirá el shake. Si se deja vacío se autoresuelve a Camera.main / Camera más activa con mayor depth. Asígnala explícitamente si tu cámara no es la 'main'.")]
+    [SerializeField] Camera explicitCamera;
+
     [Header("Shake parameters")]
-    [Tooltip("Multiplicador del offset posicional (metros).")]
-    [SerializeField] float positionAmplitude = 0.12f;
+    [Tooltip("Multiplicador del offset posicional (metros). Subido: la antigua 0.12 con trauma^2 daba <3mm en pisadas.")]
+    [SerializeField] float positionAmplitude = 0.45f;
     [Tooltip("Multiplicador del offset rotacional (grados).")]
-    [SerializeField] float rotationAmplitude = 1.5f;
+    [SerializeField] float rotationAmplitude = 5f;
     [Tooltip("Frecuencia del ruido (Hz).")]
     [SerializeField] float frequency = 22f;
 
@@ -38,6 +42,8 @@ public class CameraShake : MonoBehaviour
     Camera trackedCamera;
     Vector3 baseLocalPos;
     Quaternion baseLocalRot;
+    Vector3 lastPosOffset;
+    Quaternion lastRotOffset = Quaternion.identity;
 
     void Awake()
     {
@@ -83,14 +89,23 @@ public class CameraShake : MonoBehaviour
 
     Camera GetActiveCamera()
     {
-        // Si la cámara cacheada sigue activa, úsala; si no, busca otra entre todas las habilitadas.
-        if (trackedCamera && trackedCamera.isActiveAndEnabled) return trackedCamera;
-
-        Camera best = null;
-        foreach (var c in Camera.allCameras)
+        // 1) Si el usuario ha asignado una cámara explícita en el inspector, esa manda.
+        if (explicitCamera && explicitCamera.isActiveAndEnabled)
         {
-            if (!c || !c.isActiveAndEnabled) continue;
-            if (best == null || c.depth > best.depth) best = c;
+            if (trackedCamera != explicitCamera) AdoptCamera(explicitCamera);
+            return trackedCamera;
+        }
+        // 2) Cámara cacheada si sigue válida.
+        if (trackedCamera && trackedCamera.isActiveAndEnabled) return trackedCamera;
+        // 3) Autoresolución: Camera.main primero, luego la mayor 'depth' activa.
+        Camera best = Camera.main;
+        if (best == null || !best.isActiveAndEnabled)
+        {
+            foreach (var c in Camera.allCameras)
+            {
+                if (!c || !c.isActiveAndEnabled) continue;
+                if (best == null || c.depth > best.depth) best = c;
+            }
         }
         if (best != trackedCamera) AdoptCamera(best);
         return trackedCamera;
@@ -122,11 +137,22 @@ public class CameraShake : MonoBehaviour
         var cam = GetActiveCamera();
         if (!cam) return;
 
-        // Capturamos baseline tal y como esté ahora (después de que el resto de scripts la posicione).
-        baseLocalPos = cam.transform.localPosition;
-        baseLocalRot = cam.transform.localRotation;
+        // Capturamos baseline RESTANDO el offset que aplicamos el frame anterior, para que
+        // el shake no se absorba en la baseline y derive. Si el PlayerController re-posicionó
+        // la cámara este frame antes de nosotros, el offset previo ya no estaría aplicado
+        // pero restarlo es seguro (compensa después al sumar el nuevo offset).
+        baseLocalPos = cam.transform.localPosition - lastPosOffset;
+        baseLocalRot = cam.transform.localRotation * Quaternion.Inverse(lastRotOffset);
 
-        if (trauma <= 0f) return;
+        if (trauma <= 0f)
+        {
+            // Sin trauma: dejamos la cámara en su baseline limpia y limpiamos offsets.
+            cam.transform.localPosition = baseLocalPos;
+            cam.transform.localRotation = baseLocalRot;
+            lastPosOffset = Vector3.zero;
+            lastRotOffset = Quaternion.identity;
+            return;
+        }
 
         float t = Time.time * frequency;
         float shake = trauma * trauma; // curva cuadrática típica
@@ -140,8 +166,11 @@ public class CameraShake : MonoBehaviour
         Vector3 posOffset = new Vector3(nx, ny, nz) * (positionAmplitude * shake);
         Vector3 rotOffset = new Vector3(rx, ry, rz) * (rotationAmplitude * shake);
 
+        Quaternion rotQ = Quaternion.Euler(rotOffset);
         cam.transform.localPosition = baseLocalPos + posOffset;
-        cam.transform.localRotation = baseLocalRot * Quaternion.Euler(rotOffset);
+        cam.transform.localRotation = baseLocalRot * rotQ;
+        lastPosOffset = posOffset;
+        lastRotOffset = rotQ;
 
         trauma = Mathf.Max(0f, trauma - traumaDecay * Time.deltaTime);
     }

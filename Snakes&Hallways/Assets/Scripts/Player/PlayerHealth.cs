@@ -53,6 +53,11 @@ public class PlayerHealth : MonoBehaviour
         lastDamageTime = Time.time;
         currentHP = Mathf.Max(0f, currentHP - amount);
 
+        // SFX de daño — se reproduce en la posición del player (3D) para que pase por el
+        // mixer y respete el volumen Master/SFX. Si no hay AudioManager o el clip no está
+        // mapeado todavía, retorna silenciosamente.
+        AudioManager.Instance?.PlaySFX(SFXId.PlayerDamage, transform.position);
+
         OnDamaged?.Invoke(amount);
         OnHealthChanged?.Invoke(currentHP, maxHP);
 
