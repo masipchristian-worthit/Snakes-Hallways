@@ -1979,7 +1979,7 @@ MonoBehaviour:
   walkStepSfx: 11
   runStepSfx: 11
   attackSfx: 13
-  attackSfxVolume: 1
+  attackSfxVolume: 0.89
   debugFootsteps: 1
   fallbackFootstepsByTimer: 1
   fallbackWalkInterval: 0.55
