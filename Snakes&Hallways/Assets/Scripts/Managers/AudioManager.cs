@@ -54,6 +54,7 @@ public enum SFXId
     UIPause            = 27,
     UIUnpause          = 28,
     PlayerDamage       = 29,   // SFX al recibir daño el jugador (PlayerHealth.TakeDamage)
+    MinotaurTP         = 30,   // SFX que se reproduce justo tras un teleport del minotauro (telegrafía la reaparición).
 }
 
 public enum MusicId

@@ -67,13 +67,37 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1307059050565508880, guid: f37751faea894a9469851799ac8a735c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7409819541151306105}
   m_SourcePrefab: {fileID: 100100000, guid: f37751faea894a9469851799ac8a735c, type: 3}
 --- !u!4 &531003442097591323 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2367739069121395878, guid: f37751faea894a9469851799ac8a735c, type: 3}
   m_PrefabInstance: {fileID: 2847795530081757373}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &3866056306693339053 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1307059050565508880, guid: f37751faea894a9469851799ac8a735c, type: 3}
+  m_PrefabInstance: {fileID: 2847795530081757373}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &7409819541151306105
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3866056306693339053}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd5c71fb5bc565b498ade6224195efa3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Billboard
+  axis: 1
+  flip: 1
+  explicitCamera: {fileID: 0}
+  rebindEveryFrames: 5
 --- !u!1001 &6211418159203082311
 PrefabInstance:
   m_ObjectHideFlags: 0

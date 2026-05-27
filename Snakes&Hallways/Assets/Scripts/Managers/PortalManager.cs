@@ -65,4 +65,11 @@ public class PortalManager : MonoBehaviour
     public void ActivatePortal() => selected?.Activate();
 
     public Vector3 GetSelectedPosition() => selected ? selected.transform.position : Vector3.zero;
+
+    /// <summary>Portal seleccionado para esta partida (puede estar inactivo aún si no se ha activado).</summary>
+    public Portal Selected => selected;
+
+    /// <summary>True si hay portal seleccionado y ya está activo (jugable). Lo usa la IA para
+    /// crear una zona segura alrededor en la que NO puede teleportarse el minotauro.</summary>
+    public bool IsSelectedActive => selected != null && selected.IsActive;
 }

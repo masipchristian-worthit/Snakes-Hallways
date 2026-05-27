@@ -79,6 +79,60 @@ public class EnemyAIBase : MonoBehaviour
     [Tooltip("Radio MÍNIMO (m) alrededor del jugador en el que el minotauro NUNCA puede reaparecer. Cualquier candidato de respawn dentro de esta zona se descarta.")]
     [SerializeField] float minSafeRespawnRadius = 7f;
 
+    [Header("Forced Respawn — Distancias por trigger")]
+    [Tooltip("Si el TP lo dispara 'stuck' (mino atascado), distancia MÍNIMA al jugador. Random hasta 'stuckMaxDistance'.")]
+    [SerializeField] float stuckMinDistance = 18f;
+    [Tooltip("Si el TP lo dispara 'stuck', distancia MÁXIMA al jugador. El sampler escogerá aleatorio entre min y max.")]
+    [SerializeField] float stuckMaxDistance = 32f;
+    [Tooltip("Si el TP lo dispara 'noSight' (mucho tiempo sin verlo), distancia mínima.")]
+    [SerializeField] float noSightMinDistance = 15f;
+    [Tooltip("Si el TP lo dispara 'noSight', distancia máxima.")]
+    [SerializeField] float noSightMaxDistance = 20f;
+    [Tooltip("Si el TP lo dispara 'farFromPlayer' (lejos del jugador), distancia mínima.")]
+    [SerializeField] float farMinDistance = 10f;
+    [Tooltip("Si el TP lo dispara 'farFromPlayer', distancia máxima.")]
+    [SerializeField] float farMaxDistance = 20f;
+
+    [Header("Forced Respawn — Validación occluders (CRÍTICO)")]
+    [Tooltip("Layers que cuentan como occluders válidos para tapar al minotauro tras un TP. Debe contener 'Scenario'. Si NO está marcado nada el TP NO valida occlusion (no recomendado).")]
+    [SerializeField] LayerMask scenarioOccluderMask;
+    [Tooltip("Si está activo, antes de aceptar un punto de TP se lanzan 8 raycasts desde la cámara del player a las 8 esquinas del bounds del minotauro. SOLO se acepta el punto si TODAS las esquinas quedan ocluidas por colliders del scenarioOccluderMask. Garantiza que el TP no caiga visible aunque sea parcialmente.")]
+    [SerializeField] bool requireScenarioOcclusion = true;
+    [Tooltip("Margen adicional (m) que se resta a la distancia de los raycasts para considerar que el occluder está 'antes' del minotauro. Sube si los raycasts colisionan con el propio mino.")]
+    [SerializeField] float occluderMargin = 0.3f;
+    [Tooltip("Si tras N samples no se encuentra ningún punto que cumpla la oclusión, el TP se ABORTA (no se hace) en lugar de aceptar un punto subóptimo. Si false, se acepta el menos malo.")]
+    [SerializeField] bool abortIfNoOccludedPoint = true;
+    [Tooltip("Tamaño extra (multiplicador) que se aplica al bounds del minotauro al lanzar los raycasts de validación. >1 es más exigente (mejor para evitar 'asomarse').")]
+    [SerializeField] float occlusionBoundsExpand = 1.05f;
+
+    [Header("Forced Respawn — Zona segura Portal")]
+    [Tooltip("Una vez el portal de victoria está activo, cualquier candidato de TP dentro de este radio (m) del portal se descarta. 0 = desactivado.")]
+    [SerializeField] float portalSafeRadius = 6f;
+    [Tooltip("Cooldown forzado del TP cuando el jugador está MUY cerca del portal (a esta distancia o menos). Sube la presión final.")]
+    [SerializeField] float portalProximityCooldownMul = 0.4f;
+    [Tooltip("Distancia (m) al portal por debajo de la cual el cooldown se reduce por portalProximityCooldownMul.")]
+    [SerializeField] float portalProximityDistance = 18f;
+
+    [Header("Forced Respawn — Audio TP")]
+    [Tooltip("Volumen del SFX MinotaurTP que se reproduce tras un TP. 0 = desactivado.")]
+    [Range(0f, 2f)][SerializeField] float minotaurTpVolume = 1f;
+
+    [Header("Stun (Linterna)")]
+    [Tooltip("Tiempo (s) que dura el stun cuando la linterna lo activa durante un ataque.")]
+    [SerializeField] float stunDuration = 2.5f;
+    [Tooltip("Color del outline morado mostrado durante el stun (regulable).")]
+    [SerializeField] Color stunOutlineColor = new Color(0.65f, 0.18f, 1f, 1f);
+    [Tooltip("Intensidad del outline (multiplicador de emisión sobre stunOutlineColor).")]
+    [Range(0f, 8f)][SerializeField] float stunOutlineIntensity = 2.5f;
+    [Tooltip("Renderers del mino que reciben el outline durante el stun. Si está vacío se autollenan con todos los SkinnedMeshRenderer/MeshRenderer hijos.")]
+    [SerializeField] Renderer[] stunRenderers;
+    [Tooltip("Rango (m) jugador↔mino dentro del cual la linterna puede stunearlo. 0 = sin límite (solo importa el ataque).")]
+    [SerializeField] float stunLampRange = 8f;
+
+    [Header("Idle Attack")]
+    [Tooltip("Si está activo, el mino puede atacar directamente desde Idle si el jugador entra en attackRange — sin pasar antes por Chase. Útil para spawns/posts/ambush.")]
+    [SerializeField] bool allowAttackFromIdle = true;
+
     [Header("Chase — lead targeting (predicción)")]
     [Tooltip("Apunta a player.position + playerVelocity * leadTime. 0 = sin predicción (apunta al jugador exacto).")]
     [SerializeField] float chaseLeadTime = 0.35f;
@@ -135,10 +189,20 @@ public class EnemyAIBase : MonoBehaviour
     float attackCooldownTimer;       // cooldown global de ataque
     float postAttackWalkTimer;       // tiempo restante en modo Walk forzado tras impactar
 
+    // Trigger que disparó el TP forzado más reciente — define qué distancia se usa para muestrear el punto.
+    enum ForcedRespawnTrigger { None, Stuck, NoSight, FarFromPlayer }
+
     // Forced respawn tracking
     float noSightTimer;              // segundos seguidos sin tener LoS con el jugador
     float farFromPlayerTimer;        // segundos seguidos por encima de farFromPlayerDistance
     float forcedRespawnCooldownTimer;
+
+    // Stun (linterna)
+    float stunTimer;
+    bool isStunned;
+    static readonly int HashEmissionColor = Shader.PropertyToID("_EmissionColor");
+    static readonly int HashBaseColor = Shader.PropertyToID("_BaseColor");
+    public bool IsStunned => isStunned;
     // Stuck detection: ancla la posición y mide cuánto tiempo lleva sin abandonar stuckRadius.
     Vector3 stuckAnchor;
     float stuckTimer;
@@ -191,6 +255,15 @@ public class EnemyAIBase : MonoBehaviour
     void Update()
     {
         DifficultyEscalation = ResolveEscalation();
+
+        // ── STUN ───────────────────────────────────────────────────────────
+        // Pausa total: la IA, el agent y el Animator quedan congelados. Solo
+        // decrementa el timer del stun. El outline lo gestiona TickStun.
+        if (isStunned)
+        {
+            TickStun();
+            return;
+        }
 
         if (attackCooldownTimer > 0f) attackCooldownTimer -= Time.deltaTime;
         if (postAttackWalkTimer > 0f) postAttackWalkTimer -= Time.deltaTime;
@@ -247,6 +320,7 @@ public class EnemyAIBase : MonoBehaviour
             case State.Alert: TickAlert(); break;
             case State.Chase: TickChase(); break;
             case State.Attacking: TickAttack(); break;
+            case State.Stunned: TickStun(); break;
         }
 
         UpdateAnimatorBools();
@@ -291,7 +365,114 @@ public class EnemyAIBase : MonoBehaviour
                 attackDamageApplied = false;
                 break;
             case State.Idle: Agent.isStopped = true; break;
+            case State.Stunned:
+                // El stun congela todo. Animator pausado y agent parado.
+                Agent.isStopped = true;
+                targetSpeed = 0f;
+                if (enemyAnim != null)
+                {
+                    enemyAnim.SetPatrolling(false);
+                    enemyAnim.SetChasing(false);
+                    enemyAnim.SetAnimatorSpeed(0f);
+                }
+                break;
         }
+    }
+
+    /// <summary>
+    /// API pública: el PlayerController la llama cuando el jugador ENCIENDE la linterna
+    /// dentro del rango definido (stunLampRange) MIENTRAS el mino está atacando.
+    /// Devuelve true si el stun se ha aplicado.
+    /// </summary>
+    public bool TryStunByLamp(Vector3 playerPosition)
+    {
+        // Solo se puede stunear si está en mitad del ataque.
+        if (CurrentState != State.Attacking) return false;
+        if (isStunned) return false;
+        // Rango
+        if (stunLampRange > 0f)
+        {
+            float dist = Vector3.Distance(transform.position, playerPosition);
+            if (dist > stunLampRange) return false;
+        }
+        EnterStun();
+        return true;
+    }
+
+    void EnterStun()
+    {
+        isStunned = true;
+        stunTimer = stunDuration;
+        // Cancelar también el possible damage que iba a aplicarse este ataque.
+        attackDamageApplied = true;
+        attackTimer = 0f;
+        // Visual: outline morado.
+        ApplyStunOutline(true);
+        // Estado lógico: Stunned. Se restaurará el animator.speed en ExitStun.
+        SetState(State.Stunned);
+    }
+
+    void ExitStun()
+    {
+        isStunned = false;
+        stunTimer = 0f;
+        ApplyStunOutline(false);
+        if (enemyAnim != null) enemyAnim.SetAnimatorSpeed(1f);
+        // Tras salir del stun, vuelve a Chase si conocemos al jugador, o Patrol si no.
+        if (KnownPlayerPos.HasValue || (detection != null && detection.HasLineOfSight))
+        {
+            BeginChase(DetectionVisibility.Frontside);
+        }
+        else
+        {
+            SetState(State.Patrol);
+        }
+    }
+
+    void TickStun()
+    {
+        // Decrementa con unscaledDeltaTime sería raro porque el resto usa deltaTime — aquí también.
+        stunTimer -= Time.deltaTime;
+        if (stunTimer <= 0f) ExitStun();
+    }
+
+    /// <summary>
+    /// Activa/desactiva el outline morado del mino aplicando un MaterialPropertyBlock con
+    /// _EmissionColor pumpado al stunOutlineColor * stunOutlineIntensity. Restaurar = limpiar.
+    /// Usa los renderers asignados en inspector (stunRenderers) o autollena con todos los del mino.
+    /// Si tu shader URP no tiene _EmissionColor (p.ej. Unlit), modifica _BaseColor en su lugar.
+    /// </summary>
+    void ApplyStunOutline(bool on)
+    {
+        EnsureStunRenderers();
+        if (stunRenderers == null) return;
+        for (int i = 0; i < stunRenderers.Length; i++)
+        {
+            var r = stunRenderers[i];
+            if (r == null) continue;
+            var mpb = new MaterialPropertyBlock();
+            r.GetPropertyBlock(mpb);
+            if (on)
+            {
+                Color emi = stunOutlineColor * Mathf.Max(0f, stunOutlineIntensity);
+                // _EmissionColor (Lit/HDRP). Si tu shader no lo tiene, Unity lo ignora silenciosamente.
+                mpb.SetColor(HashEmissionColor, emi);
+                // Tinte de base como fallback visual si el shader no soporta emission.
+                mpb.SetColor(HashBaseColor, Color.Lerp(Color.white, stunOutlineColor, 0.6f));
+            }
+            else
+            {
+                // Limpiar overrides para volver al material original.
+                mpb.Clear();
+            }
+            r.SetPropertyBlock(mpb);
+        }
+    }
+
+    void EnsureStunRenderers()
+    {
+        if (stunRenderers != null && stunRenderers.Length > 0) return;
+        stunRenderers = GetComponentsInChildren<Renderer>();
     }
 
     /// <summary>
@@ -390,6 +571,16 @@ public class EnemyAIBase : MonoBehaviour
 
     void TickIdle()
     {
+        // Ataque directo desde Idle: si el jugador entra al attackRange estando el mino
+        // parado (post-stun, post-warp con facing=false, etc.), entra a Attacking sin
+        // pasar por Chase. Genera "ambush" cuando el player se acerca a un mino quieto.
+        if (allowAttackFromIdle && player != null
+            && attackCooldownTimer <= 0f && postAttackWalkTimer <= 0f
+            && Vector3.Distance(transform.position, player.position) <= attackRange)
+        {
+            SetState(State.Attacking);
+            return;
+        }
         SetState(State.Patrol);
     }
 
@@ -781,112 +972,257 @@ public class EnemyAIBase : MonoBehaviour
 
         if (noSightTrigger || farTrigger || stuckTrigger)
         {
-            float desired = diff.forcedRespawnDistance > 0f ? diff.forcedRespawnDistance : diff.postRoomSpawnDistance;
-            // Si solo dispara el stuck (no hay distancia configurada para "lejos"),
-            // usamos forcedRespawnDistance o un valor sano por defecto.
-            if (stuckTrigger && desired <= 0f) desired = 20f;
-            // Garantiza que la distancia deseada está fuera del radio seguro (si no,
-            // el sampler descartaría todos los candidatos por la zona prohibida).
-            desired = Mathf.Max(desired, minSafeRespawnRadius + 1f);
-            if (TryForcedRespawnNearPlayer(desired))
+            // Prioridad: stuck > noSight > far. El stuck es el más "anómalo" (mino atascado),
+            // y queremos resolverlo siempre con TP lejos para garantizar que respawnea en sitio nuevo.
+            ForcedRespawnTrigger trigger;
+            float desiredMin, desiredMax;
+            if (stuckTrigger)
+            {
+                trigger = ForcedRespawnTrigger.Stuck;
+                desiredMin = stuckMinDistance;
+                desiredMax = Mathf.Max(stuckMaxDistance, stuckMinDistance + 1f);
+            }
+            else if (noSightTrigger)
+            {
+                trigger = ForcedRespawnTrigger.NoSight;
+                desiredMin = noSightMinDistance;
+                desiredMax = Mathf.Max(noSightMaxDistance, noSightMinDistance + 1f);
+            }
+            else
+            {
+                trigger = ForcedRespawnTrigger.FarFromPlayer;
+                desiredMin = farMinDistance;
+                desiredMax = Mathf.Max(farMaxDistance, farMinDistance + 1f);
+            }
+            // Garantiza que la distancia mínima respeta la zona prohibida del player.
+            desiredMin = Mathf.Max(desiredMin, minSafeRespawnRadius + 1f);
+            desiredMax = Mathf.Max(desiredMax, desiredMin + 1f);
+
+            if (TryForcedRespawnNearPlayer(desiredMin, desiredMax, trigger))
             {
                 noSightTimer = 0f;
                 farFromPlayerTimer = 0f;
                 stuckTimer = 0f;
                 stuckAnchor = transform.position;
-                forcedRespawnCooldownTimer = forcedRespawnCooldown;
+                forcedRespawnCooldownTimer = ResolveForcedRespawnCooldown();
             }
         }
     }
 
     /// <summary>
-    /// Samplea N puntos XZ del NavMesh alrededor del jugador (centrados en
-    /// (playerX, <see cref="forcedRespawnY"/>, playerZ)) y se queda con el más cercano a
-    /// la distancia ideal. Tras escoger un punto, el Warp queda fijado a Y=forcedRespawnY
-    /// (típicamente la cota del navmesh superior del mapa, p.ej. una pasarela elevada).
-    /// Descarta puntos visibles para la cámara del jugador para no romper la inmersión.
+    /// Cooldown adaptativo: si el jugador está cerca del portal activo, se reduce para
+    /// aumentar la presión en el tramo final del nivel.
     /// </summary>
-    bool TryForcedRespawnNearPlayer(float desiredDistance)
+    float ResolveForcedRespawnCooldown()
+    {
+        if (player == null) return forcedRespawnCooldown;
+        if (PortalManager.Instance == null) return forcedRespawnCooldown;
+        Vector3 portalPos = PortalManager.Instance.GetSelectedPosition();
+        if (portalPos == Vector3.zero) return forcedRespawnCooldown;
+        float distPortal = Vector3.Distance(player.position, portalPos);
+        if (distPortal > portalProximityDistance) return forcedRespawnCooldown;
+        // Mapeo lineal: distPortal=portalProximityDistance → cooldown normal; distPortal=0 → cooldown * portalProximityCooldownMul.
+        float t = Mathf.InverseLerp(portalProximityDistance, 0f, distPortal);
+        float mul = Mathf.Lerp(1f, Mathf.Clamp01(portalProximityCooldownMul), t);
+        return forcedRespawnCooldown * mul;
+    }
+
+    /// <summary>
+    /// Samplea N puntos XZ del NavMesh alrededor del jugador y se queda con el mejor según:
+    ///   - distancia aleatoria en [minDist, maxDist] (depende del trigger),
+    ///   - validación CRÍTICA de oclusión: 8 raycasts desde la cámara del player a las 8
+    ///     esquinas del bounds del minotauro. Si CUALQUIER esquina queda visible (sin
+    ///     occluder de layer 'Scenario' entre player y mino), el punto se descarta.
+    ///   - zona segura del portal activo: descartar candidatos dentro de portalSafeRadius
+    ///     del portal una vez Portal.IsActive.
+    /// Tras escoger un punto, el Warp queda fijado a Y=forcedRespawnY.
+    /// </summary>
+    bool TryForcedRespawnNearPlayer(float minDist, float maxDist, ForcedRespawnTrigger trigger)
     {
         if (player == null) return false;
 
         Vector3 playerPos = player.position;
-        // Centro de búsqueda: misma XZ que el jugador, pero a la altura forzada del respawn.
         Vector3 searchCenter = new Vector3(playerPos.x, forcedRespawnY, playerPos.z);
 
-        Camera playerCam = Camera.main; // para descartar puntos visibles
-        float bestDelta = float.PositiveInfinity;
+        Camera playerCam = Camera.main;
+        float bestScore = float.NegativeInfinity;
         Vector3 bestPoint = transform.position;
         bool found = false;
+        bool foundOccluded = false;
 
         int samples = Mathf.Max(4, forcedRespawnSamples);
         float sampleTol = Mathf.Max(forcedRespawnVerticalTolerance, forcedRespawnTolerance);
+        float targetDist = (minDist + maxDist) * 0.5f;
+
         for (int i = 0; i < samples; i++)
         {
-            // Distribución en anillo: ángulo aleatorio + radio dentro de la tolerancia.
             float angle = Random.value * Mathf.PI * 2f;
-            float radius = desiredDistance + Random.Range(-forcedRespawnTolerance, forcedRespawnTolerance);
-            radius = Mathf.Max(2f, radius);
-            // Candidato a la altura del navmesh superior.
+            float radius = Random.Range(minDist, maxDist);
             Vector3 candidate = searchCenter + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
 
             if (!NavMesh.SamplePosition(candidate, out var hit, sampleTol, NavMesh.AllAreas))
                 continue;
 
-            // Punto final del respawn: XZ del sample del NavMesh, Y forzada a forcedRespawnY
-            // (criterio del owner: queremos que SIEMPRE caiga en la cota superior del mapa).
             Vector3 finalPoint = new Vector3(hit.position.x, forcedRespawnY, hit.position.z);
 
-            // Descartar puntos directamente visibles para el jugador (evita "pop" en pantalla).
-            if (playerCam != null && IsPointVisibleToCamera(finalPoint + Vector3.up * 1.5f, playerCam))
-                continue;
-
-            // Métrica: distancia XZ al jugador respecto a la deseada.
             Vector2 dXZ = new Vector2(finalPoint.x - playerPos.x, finalPoint.z - playerPos.z);
             float distXZ = dXZ.magnitude;
-            // Zona prohibida: descartar cualquier candidato dentro del radio seguro.
+            // Zona prohibida alrededor del jugador.
             if (minSafeRespawnRadius > 0f && distXZ < minSafeRespawnRadius) continue;
-            float delta = Mathf.Abs(distXZ - desiredDistance);
-            if (delta < bestDelta)
+            // Zona prohibida alrededor del portal (si activo).
+            if (IsTooCloseToActivePortal(finalPoint)) continue;
+
+            // CRÍTICO: validar que el punto queda detrás de occluders del scenarioOccluderMask.
+            bool occluded = !requireScenarioOcclusion || IsFullyOccludedByScenario(finalPoint, playerCam);
+            // Si requerimos oclusión y abortamos si no la hay, descarta directamente los no ocluidos.
+            if (requireScenarioOcclusion && !occluded && abortIfNoOccludedPoint) continue;
+
+            // Scoring: prioriza ocluidos. Dentro de cada categoría, prefiere puntos no visibles
+            // y cercanos a la distancia media del rango.
+            float score = 0f;
+            if (occluded) score += 1000f;
+            bool visible = playerCam != null && IsPointVisibleToCamera(finalPoint + Vector3.up * 1.5f, playerCam);
+            if (!visible) score += 100f;
+            score += -Mathf.Abs(distXZ - targetDist);
+
+            if (score > bestScore)
             {
-                bestDelta = delta;
+                bestScore = score;
                 bestPoint = finalPoint;
                 found = true;
+                foundOccluded = occluded;
             }
         }
 
         if (!found) return false;
+        // Política estricta: si exigimos oclusión y no encontramos un punto ocluido, abortamos.
+        // El TP se vuelve a intentar en el siguiente tick una vez expire el cooldown.
+        if (requireScenarioOcclusion && abortIfNoOccludedPoint && !foundOccluded) return false;
 
+        // Si la spy cam está activa, hacemos un blink (fade rápido) para enmascarar el warp.
+        // Si no está activa, ApplyTeleport corre síncronamente.
+        Vector3 warpPos = bestPoint;
+        System.Action doWarp = () => ApplyTeleport(warpPos);
+
+        if (SpyCamController.Instance != null)
+            SpyCamController.Instance.BlinkForTeleport(doWarp);
+        else
+            doWarp();
+
+        return true;
+    }
+
+    /// <summary>
+    /// Aplica el warp físicamente + reproduce SFX MinotaurTP + decide estado post-warp.
+    /// Se llama dentro del callback de BlinkForTeleport para que la spy cam tape el "pop".
+    /// </summary>
+    void ApplyTeleport(Vector3 bestPoint)
+    {
         Agent.Warp(bestPoint);
-        // Warp puede snapear al NavMesh y bajar la Y. Forzamos Y=forcedRespawnY SIEMPRE
-        // (criterio owner: el TP debe quedar en la cota superior, nunca en partes bajas del navmesh).
-        var pos = transform.position;
-        pos.y = forcedRespawnY;
-        transform.position = pos;
+        var pos = transform.position; pos.y = forcedRespawnY; transform.position = pos;
         KnownPlayerPos = null;
         chaseMemoryTimer = 0f;
 
-        // Comportamiento post-respawn: si está mirando al jugador (o así lo pide la dificultad)
-        // entra a Chase para que el jugador note el "renew". Si no, vuelve a Patrol.
-        Vector3 toPlayer = (playerPos - bestPoint); toPlayer.y = 0f;
+        // SFX que telegrafía la reaparición — el player escucha "algo se ha movido".
+        if (minotaurTpVolume > 0f)
+            AudioManager.Instance?.PlaySFX(SFXId.MinotaurTP, transform.position, minotaurTpVolume);
+
+        if (player == null) { SetState(State.Patrol); return; }
+
+        Vector3 toPlayer = (player.position - bestPoint); toPlayer.y = 0f;
         bool facing = forcedRespawnChasesIfFacing && toPlayer.sqrMagnitude > 0.01f &&
                       Vector3.Dot(transform.forward, toPlayer.normalized) > 0.3f;
         if (facing)
         {
-            KnownPlayerPos = playerPos;
+            KnownPlayerPos = player.position;
             BeginChase(DetectionVisibility.Frontside);
         }
         else
         {
             SetState(State.Patrol);
         }
+    }
+
+    /// <summary>Devuelve true si el portal activo existe Y el punto está dentro de su zona segura.</summary>
+    bool IsTooCloseToActivePortal(Vector3 point)
+    {
+        if (portalSafeRadius <= 0f) return false;
+        if (PortalManager.Instance == null || !PortalManager.Instance.IsSelectedActive) return false;
+        Vector3 portalPos = PortalManager.Instance.GetSelectedPosition();
+        if (portalPos == Vector3.zero) return false;
+        Vector2 d = new Vector2(point.x - portalPos.x, point.z - portalPos.z);
+        return d.magnitude < portalSafeRadius;
+    }
+
+    /// <summary>
+    /// Validación crítica del TP: lanza 8 raycasts desde la cámara del player a las 8 esquinas
+    /// del bounds del minotauro APLICADO al punto candidato. Devuelve true SOLO si TODOS los
+    /// raycasts impactan en colliders del scenarioOccluderMask antes de llegar al mino.
+    /// Esto garantiza que la malla del mino queda completamente tapada por geometría del nivel.
+    /// </summary>
+    bool IsFullyOccludedByScenario(Vector3 candidate, Camera playerCam)
+    {
+        if (playerCam == null) return true; // sin cámara no validamos — no rompemos el TP
+        if (scenarioOccluderMask.value == 0)
+        {
+            // Sin layer configurado, no podemos validar. Avisamos una vez y aceptamos.
+            if (!scenarioMaskWarned)
+            {
+                Debug.LogWarning("[EnemyAIBase] scenarioOccluderMask vacío. El TP no valida oclusión — asigna el layer 'Scenario' en el inspector del minotauro.", this);
+                scenarioMaskWarned = true;
+            }
+            return true;
+        }
+
+        Bounds localBounds = GetMinotaurLocalBounds();
+        Vector3 localExtents = localBounds.extents * occlusionBoundsExpand;
+        Vector3 origin = playerCam.transform.position;
+
+        for (int sx = -1; sx <= 1; sx += 2)
+        for (int sy = -1; sy <= 1; sy += 2)
+        for (int sz = -1; sz <= 1; sz += 2)
+        {
+            Vector3 corner = candidate + localBounds.center +
+                             new Vector3(sx * localExtents.x, sy * localExtents.y, sz * localExtents.z);
+            Vector3 dir = corner - origin;
+            float dist = dir.magnitude;
+            if (dist < 0.01f) return false; // candidato pegado al player
+            dir /= dist;
+            float maxDist = Mathf.Max(0.1f, dist - occluderMargin);
+            // Si CUALQUIER esquina NO está ocluida → el mino se vería al menos parcialmente.
+            if (!Physics.Raycast(origin, dir, maxDist, scenarioOccluderMask, QueryTriggerInteraction.Ignore))
+                return false;
+        }
         return true;
+    }
+    bool scenarioMaskWarned;
+
+    // Cache de los bounds locales del mino, calculados desde renderers hijos al primer uso.
+    Bounds cachedLocalBounds;
+    bool cachedLocalBoundsInit;
+    Bounds GetMinotaurLocalBounds()
+    {
+        if (cachedLocalBoundsInit) return cachedLocalBounds;
+        var renderers = GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+        {
+            // Fallback razonable (humanoide ~2m altura).
+            cachedLocalBounds = new Bounds(Vector3.up * 1f, new Vector3(1f, 2f, 1f));
+        }
+        else
+        {
+            Bounds b = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) b.Encapsulate(renderers[i].bounds);
+            cachedLocalBounds = new Bounds(b.center - transform.position, b.size);
+        }
+        cachedLocalBoundsInit = true;
+        return cachedLocalBounds;
     }
 
     static bool IsPointVisibleToCamera(Vector3 worldPoint, Camera cam)
     {
         Vector3 vp = cam.WorldToViewportPoint(worldPoint);
-        if (vp.z <= 0f) return false; // detrás de la cámara
+        if (vp.z <= 0f) return false;
         return vp.x > -0.05f && vp.x < 1.05f && vp.y > -0.05f && vp.y < 1.05f;
     }
     #endregion
@@ -1008,5 +1344,30 @@ public class EnemyAIBase : MonoBehaviour
 
     public bool IsChasing => CurrentState == State.Chase || CurrentState == State.Attacking;
     public Transform Player => player;
+    #endregion
+
+    #region Gizmos
+    void OnDrawGizmosSelected()
+    {
+        // Esfera roja: rango de impacto del ataque del minotauro.
+        Gizmos.color = new Color(1f, 0.15f, 0.15f, 0.9f);
+        Gizmos.DrawWireSphere(transform.position, attackRange);
+        // Esfera amarilla tenue: safety distance (a la que se queda en chase para no clipear).
+        Gizmos.color = new Color(1f, 0.85f, 0.15f, 0.45f);
+        Gizmos.DrawWireSphere(transform.position, safetyDistance);
+        // Esfera morada: rango de stun por linterna.
+        if (stunLampRange > 0f)
+        {
+            Gizmos.color = new Color(0.65f, 0.18f, 1f, 0.45f);
+            Gizmos.DrawWireSphere(transform.position, stunLampRange);
+        }
+        // Zona segura del portal activo (sólo en play y con portal activo).
+        if (Application.isPlaying && PortalManager.Instance != null
+            && PortalManager.Instance.IsSelectedActive && portalSafeRadius > 0f)
+        {
+            Gizmos.color = new Color(0.2f, 1f, 0.5f, 0.5f);
+            Gizmos.DrawWireSphere(PortalManager.Instance.GetSelectedPosition(), portalSafeRadius);
+        }
+    }
     #endregion
 }

@@ -176,6 +176,38 @@ public class SpyCamController : MonoBehaviour
         IsTransitioning = false;
     }
 
+    /// <summary>
+    /// Fade rápido al negro, ejecuta <paramref name="midAction"/> en el pico (cámara invisible)
+    /// y fade out. Pensado para enmascarar TP del minotauro mientras el player está en spy cam
+    /// — sin esto el escenario "salta" bruscamente en pantalla. Si la spy cam NO está activa
+    /// no hace nada (el TP del minotauro pasa fuera de pantalla y no necesita ocultarse).
+    /// </summary>
+    public Coroutine BlinkForTeleport(System.Action midAction, float fadeIn = 0.18f, float hold = 0.05f, float fadeOut = 0.25f)
+    {
+        if (!IsActive)
+        {
+            // Si no estamos en spy cam, ejecutamos midAction directamente: nada que ocultar.
+            midAction?.Invoke();
+            return null;
+        }
+        return StartCoroutine(BlinkCo(midAction, fadeIn, hold, fadeOut));
+    }
+
+    IEnumerator BlinkCo(System.Action midAction, float fadeIn, float hold, float fadeOut)
+    {
+        var st = SceneTransition.EnsureInstance();
+        if (useSceneTransitionFade && st != null)
+        {
+            yield return st.FadeAction(midAction, fadeIn, hold, fadeOut);
+            yield break;
+        }
+        EnsureFallbackOverlay();
+        yield return FadeTo(1f, fadeIn);
+        midAction?.Invoke();
+        yield return new WaitForSecondsRealtime(hold);
+        yield return FadeTo(0f, fadeOut);
+    }
+
     IEnumerator RunFade(System.Action mid)
     {
         // SceneTransition se auto-bootstrappea — siempre habrá una instancia disponible.

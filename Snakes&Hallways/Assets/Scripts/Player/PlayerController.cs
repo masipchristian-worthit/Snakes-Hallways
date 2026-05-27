@@ -149,7 +149,12 @@ public class PlayerController : MonoBehaviour
     #region Inspector — Lamp
     [Header("Lamp")]
     [SerializeField] GameObject lampObject;
+    [Tooltip("Tiempo mínimo (s) entre dos toggles consecutivos de la linterna. Evita spam de encender/apagar y obliga al jugador a comprometerse.")]
+    [SerializeField] float lampToggleCooldown = 0.6f;
+    [Tooltip("Si está activo, al ENCENDER la linterna se intenta stunear a un minotauro cercano que esté ATACANDO (no afecta a apagar). El rango concreto está en el inspector del enemigo (stunLampRange).")]
+    [SerializeField] bool lampStunsAttackingEnemy = true;
     public bool LampOn { get; private set; }
+    float lampCooldownTimer;
     #endregion
 
     #region Inspector — SFX / Audio
@@ -314,6 +319,8 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (lampCooldownTimer > 0f) lampCooldownTimer -= Time.deltaTime;
+
         isGrounded = Physics.CheckSphere(groundCheck.position, groundCheckRadius, groundLayer);
 
         // Landing: detect & store impact for feedback
@@ -682,8 +689,26 @@ public class PlayerController : MonoBehaviour
 
     void ToggleLamp()
     {
+        // Cooldown: bloquea spam de encender/apagar. Si está en cooldown se ignora la pulsación.
+        if (lampCooldownTimer > 0f) return;
+        lampCooldownTimer = lampToggleCooldown;
+
+        bool wasOff = !LampOn;
         LampOn = !LampOn;
         if (lampObject) lampObject.SetActive(LampOn);
+
+        // ── Stun por linterna ────────────────────────────────────────────────
+        // Solo al ENCENDER (no al apagar). El propio enemigo decide si está dentro
+        // de rango y en estado válido (Attacking) para aceptar el stun.
+        if (wasOff && LampOn && lampStunsAttackingEnemy)
+        {
+            // Mecánica de "defensa de pánico": si hay un mino atacándote y enciendes la
+            // linterna, se intenta el stun. El propio EnemyAIBase descarta si no está en
+            // Attacking o si está fuera de su stunLampRange — aquí solo notificamos.
+            // Solo hay un mino en escena, FindFirstObjectByType basta.
+            var enemy = FindFirstObjectByType<EnemyAIBase>();
+            if (enemy != null) enemy.TryStunByLamp(transform.position);
+        }
     }
     #endregion
 

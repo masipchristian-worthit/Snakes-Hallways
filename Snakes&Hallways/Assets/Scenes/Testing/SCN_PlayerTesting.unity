@@ -604,6 +604,34 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 60e943937aaac694eaaef8fc018cadb2, type: 3}
+--- !u!1 &924869180 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6249340524452182477, guid: 8cba4cbbbaa5b364e93ccd668d5a33c3, type: 3}
+  m_PrefabInstance: {fileID: 1946712624}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &924869184
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 924869180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72780a352751b3c4e80e6810909753c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LampDitherLight
+  resolution: 256
+  pattern: 0
+  patternScale: 3
+  tint: {r: 1, g: 0.86, b: 0.55, a: 1}
+  ditherStrength: 0.55
+  radialFalloff: 0.9
+  edgeSoftness: 0.4
+  floor: 0.15
+  animateInRuntime: 0
+  animateInterval: 0.08
+  filterMode: 0
 --- !u!1 &1023058553
 GameObject:
   m_ObjectHideFlags: 0
@@ -792,7 +820,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.43666664
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 15798d9da3d34fb4c8789e0d6838a02c, type: 2}
   m_BuildHeightMesh: 0
@@ -937,6 +965,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2044213126930599352, guid: 8cba4cbbbaa5b364e93ccd668d5a33c3, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 13400000, guid: 651df4058defc0249a330c4b627d68b5, type: 2}
     - target: {fileID: 5420244601714858622, guid: 8cba4cbbbaa5b364e93ccd668d5a33c3, type: 3}
       propertyPath: m_LocalPosition.x
       value: -19.033754
@@ -984,7 +1016,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6249340524452182477, guid: 8cba4cbbbaa5b364e93ccd668d5a33c3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 924869184}
   m_SourcePrefab: {fileID: 100100000, guid: 8cba4cbbbaa5b364e93ccd668d5a33c3, type: 3}
 --- !u!20 &1946712626 stripped
 Camera:

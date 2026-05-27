@@ -171,10 +171,10 @@ Material:
     - _EdgeWidth: 1.5
     - _EnvironmentReflections: 1
     - _Exposure: 1
-    - _FakeAOContrast: 1.5
-    - _FakeAODepthSensitivity: 1.5
-    - _FakeAONormalSensitivity: 3.5
-    - _FakeAOStrength: 0.816
+    - _FakeAOContrast: 0.99
+    - _FakeAODepthSensitivity: 10
+    - _FakeAONormalSensitivity: 5.4
+    - _FakeAOStrength: 0.33
     - _FloorGrimeBoost: 1.3
     - _FogDensityRadius: 4
     - _FogFullDistance: 18
@@ -193,7 +193,7 @@ Material:
     - _GrimeIntensity: 0.55
     - _GrimeScale: 1
     - _HighlightDither: 0.276
-    - _HighlightSoftness: 0.15
+    - _HighlightSoftness: 0
     - _HighlightThreshold: 0
     - _Level1Distance: 3
     - _Level2Distance: 8
@@ -250,8 +250,8 @@ Material:
     - _AmbientLiftTint: {r: 1, g: 1, b: 1, a: 1}
     - _BaseColor: {r: 0.8018868, g: 0.7659532, b: 0.73001957, a: 1}
     - _Color: {r: 0.8018868, g: 0.7659531, b: 0.73001957, a: 1}
-    - _EmissionColor: {r: 0.18867922, g: 0.17895283, b: 0.17354928, a: 1}
-    - _FakeAOTint: {r: 0, g: 0, b: 0, a: 1}
+    - _EmissionColor: {r: 0.26691842, g: 0.26146254, b: 0.25600666, a: 1}
+    - _FakeAOTint: {r: 1, g: 0.9421966, b: 0, a: 1}
     - _FogColor: {r: 0.23899996, g: 0.15599996, b: 0.09399996, a: 1}
     - _FresnelColor: {r: 0.35999998, g: 0.28999996, b: 0.21899995, a: 1}
     - _GrimeColor: {r: 0.12099997, g: 0.07399999, b: 0.031, a: 1}

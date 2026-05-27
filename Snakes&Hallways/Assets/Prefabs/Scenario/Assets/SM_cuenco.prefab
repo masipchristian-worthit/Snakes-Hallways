@@ -214,9 +214,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd5c71fb5bc565b498ade6224195efa3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Billboard
-  target: {fileID: 0}
   axis: 1
-  flip: 1
+  flip: 0
+  explicitCamera: {fileID: 0}
+  rebindEveryFrames: 5
 --- !u!1 &4584436024302839777
 GameObject:
   m_ObjectHideFlags: 0
