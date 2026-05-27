@@ -1127,6 +1127,12 @@ MonoBehaviour:
   windowDuration: 0.35
   damage: 50
   fallbackToInstantKill: 1
+  knockbackForce: 14
+  knockbackUp: 4
+  knockbackUseVelocityChange: 1
+  knockbackResetHorizontal: 1
+  hitShakeIntensity: 0.85
+  hitShakeDuration: 0.35
 --- !u!1 &4935050100220033186
 GameObject:
   m_ObjectHideFlags: 0
@@ -1872,8 +1878,34 @@ MonoBehaviour:
   forcedRespawnSamples: 12
   forcedRespawnChasesIfFacing: 1
   forcedRespawnCooldown: 8
+  stuckRespawnSeconds: 6
+  stuckRadius: 3
   forcedRespawnY: 0
   forcedRespawnVerticalTolerance: 2
+  minSafeRespawnRadius: 7
+  stuckMinDistance: 18
+  stuckMaxDistance: 32
+  noSightMinDistance: 15
+  noSightMaxDistance: 20
+  farMinDistance: 10
+  farMaxDistance: 20
+  scenarioOccluderMask:
+    serializedVersion: 2
+    m_Bits: 4864
+  requireScenarioOcclusion: 1
+  occluderMargin: 0.3
+  abortIfNoOccludedPoint: 1
+  occlusionBoundsExpand: 1.05
+  portalSafeRadius: 6
+  portalProximityCooldownMul: 0.4
+  portalProximityDistance: 18
+  minotaurTpVolume: 1
+  stunDuration: 2.5
+  stunOutlineColor: {r: 0.65, g: 0.18, b: 1, a: 1}
+  stunOutlineIntensity: 2.5
+  stunRenderers: []
+  stunLampRange: 8
+  allowAttackFromIdle: 1
   chaseLeadTime: 0.35
   chaseMaxLeadDistance: 4
   spiralSearchPoints: 4
@@ -1946,6 +1978,13 @@ MonoBehaviour:
   stepShakeDuration: 0.18
   walkStepSfx: 11
   runStepSfx: 11
+  attackSfx: 13
+  attackSfxVolume: 1
+  debugFootsteps: 1
+  fallbackFootstepsByTimer: 1
+  fallbackWalkInterval: 0.55
+  fallbackRunInterval: 0.32
+  fallbackMoveVelocityThreshold: 0.4
   OnFootstepWalk:
     m_PersistentCalls:
       m_Calls: []
@@ -1991,6 +2030,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4096
   playerTag: Player
+  baseProximityRadius: 3
+  proximityRequiresLoS: 0
   crouchMul: 0.4
   walkingMul: 0.7
   sprintingMul: 1.3
