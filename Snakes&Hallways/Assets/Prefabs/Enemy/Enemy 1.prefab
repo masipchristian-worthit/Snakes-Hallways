@@ -1128,7 +1128,7 @@ MonoBehaviour:
   damage: 50
   fallbackToInstantKill: 1
   knockbackForce: 14
-  knockbackUp: 4
+  knockbackUpGrounded: 1.5
   knockbackUseVelocityChange: 1
   knockbackResetHorizontal: 1
   hitShakeIntensity: 0.85
@@ -1879,6 +1879,11 @@ MonoBehaviour:
   forcedRespawnChasesIfFacing: 1
   forcedRespawnCooldown: 8
   stuckRespawnSeconds: 6
+  stuckEscalationCalmMul: 1.5
+  stuckEscalationPressureMul: 0.7
+  stuckRerouteWatchedSeconds: 4
+  stuckTpOutOfSightSeconds: 3
+  minoSawPlayerMemorySeconds: 5
   stuckRadius: 3
   forcedRespawnY: 0
   forcedRespawnVerticalTolerance: 2
@@ -1901,7 +1906,7 @@ MonoBehaviour:
   portalProximityDistance: 18
   minotaurTpVolume: 1
   stunDuration: 2.5
-  stunOutlineColor: {r: 0.65, g: 0.18, b: 1, a: 1}
+  stunOutlineColor: {r: 0.45763028, g: 0.0316244, b: 0.7735849, a: 1}
   stunOutlineIntensity: 2.5
   stunRenderers: []
   stunLampRange: 8
@@ -1916,6 +1921,7 @@ MonoBehaviour:
   stalkAudioMaxBoost: 2.2
   enemyAnim: {fileID: 7522719941669442605}
   detection: {fileID: 6582398191225846315}
+  footstepVolume: 2.8
   minotaurSource: {fileID: 6937349616353664998}
   idleBreathFadeIn: 0.6
   idleBreathFadeOut: 0.6
@@ -1978,8 +1984,9 @@ MonoBehaviour:
   stepShakeDuration: 0.18
   walkStepSfx: 11
   runStepSfx: 11
+  footstepVolumeMul: 4
   attackSfx: 13
-  attackSfxVolume: 0.89
+  attackSfxVolume: 0.49
   debugFootsteps: 1
   fallbackFootstepsByTimer: 1
   fallbackWalkInterval: 0.55

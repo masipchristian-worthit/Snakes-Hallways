@@ -192,6 +192,7 @@ public class PlayerController : MonoBehaviour
     float lookRotation;
 
     bool isGrounded;
+    public bool IsGrounded => isGrounded;
     public bool IsCrouching { get; private set; }
     public bool IsSprinting { get; private set; }
     public bool IsMoving => moveInput.sqrMagnitude > 0.01f && isGrounded;
@@ -256,7 +257,29 @@ public class PlayerController : MonoBehaviour
         }
 
         EnsureAudioSources();
+        EnsureFrictionlessCollider();
         TryAutoWireJumpAction();
+    }
+
+    /// <summary>
+    /// Si el CapsuleCollider del player no tiene PhysicsMaterial asignado, le asignamos uno
+    /// con fricción 0 / combine = Minimum. Esto evita que el player se "pegue" a las paredes
+    /// cuando salta o cae rozándolas (sensación frustrante de quedarse frenado en el aire).
+    /// Si ya hay un PhysicsMaterial asignado en el inspector se respeta sin tocarlo.
+    /// </summary>
+    void EnsureFrictionlessCollider()
+    {
+        if (playerCollider == null) return;
+        if (playerCollider.sharedMaterial != null) return;
+        var pm = new PhysicsMaterial("PlayerNoFriction")
+        {
+            dynamicFriction = 0f,
+            staticFriction = 0f,
+            frictionCombine = PhysicsMaterialCombine.Minimum,
+            bounciness = 0f,
+            bounceCombine = PhysicsMaterialCombine.Minimum,
+        };
+        playerCollider.sharedMaterial = pm;
     }
 
     /// <summary>
@@ -313,7 +336,15 @@ public class PlayerController : MonoBehaviour
     {
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        if (lampObject) lampObject.SetActive(LampOn);
+        if (lampObject)
+        {
+            // Si el lampObject tiene OilLampIgnition, el GameObject DEBE quedarse activo para
+            // que el script corra los tweens — la Light.enabled la gestiona el script.
+            // Solo hacemos SetActive(false) si NO hay ignition (modo legacy).
+            var ignition = lampObject.GetComponent<OilLampIgnition>()
+                        ?? lampObject.GetComponentInChildren<OilLampIgnition>(true);
+            if (ignition == null) lampObject.SetActive(LampOn);
+        }
         HandDrawn = startWithHandDrawn;
     }
 
@@ -695,7 +726,24 @@ public class PlayerController : MonoBehaviour
 
         bool wasOff = !LampOn;
         LampOn = !LampOn;
-        if (lampObject) lampObject.SetActive(LampOn);
+        if (lampObject)
+        {
+            // Si el lampObject tiene OilLampIgnition (animación DOTween de aceite con parpadeos),
+            // delegamos en él en lugar de hacer SetActive. El GO debe quedarse activo para que
+            // el script corra el tween — el Light.enabled lo gestiona el script.
+            var ignition = lampObject.GetComponent<OilLampIgnition>()
+                        ?? lampObject.GetComponentInChildren<OilLampIgnition>(true);
+            if (ignition != null)
+            {
+                if (!lampObject.activeSelf) lampObject.SetActive(true);
+                if (LampOn) ignition.Ignite();
+                else ignition.Extinguish();
+            }
+            else
+            {
+                lampObject.SetActive(LampOn);
+            }
+        }
 
         // ── Stun por linterna ────────────────────────────────────────────────
         // Solo al ENCENDER (no al apagar). El propio enemigo decide si está dentro

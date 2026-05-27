@@ -68,8 +68,18 @@ public class EnemyAIBase : MonoBehaviour
     [SerializeField] float forcedRespawnCooldown = 4f;
 
     [Header("Stuck respawn")]
-    [Tooltip("Segundos sin moverse apreciablemente (no salir del mismo radio) antes de teleportarse forzosamente. 0 = desactivado.")]
+    [Tooltip("Segundos sin moverse apreciablemente (no salir del mismo radio) antes de considerar al mino 'atascado'. Es la base — se escala con dificultad usando stuckEscalationCalmMul / stuckEscalationPressureMul.")]
     [SerializeField] float stuckRespawnSeconds = 6f;
+    [Tooltip("Multiplicador del stuckRespawnSeconds cuando la escalación de dificultad es 0 (easy temprano). >1 = más calma. Default 1.5 = el mino tarda 50% más en pasar a TP en easy.")]
+    [SerializeField] float stuckEscalationCalmMul = 1.5f;
+    [Tooltip("Multiplicador del stuckRespawnSeconds cuando la escalación de dificultad es 1 (impossible / late game). <1 = más presión. Default 0.7 = el mino tarda 30% menos en pasar a TP en impossible.")]
+    [SerializeField] float stuckEscalationPressureMul = 0.7f;
+    [Tooltip("Si el mino está stuck Y el player lo está MIRANDO (frustum + LoS), no TP — en su lugar busca otra ruta. Este es el tiempo extra (sobre el stuck normal) que esperamos antes de iniciar el reroute.")]
+    [SerializeField] float stuckRerouteWatchedSeconds = 4f;
+    [Tooltip("Si el mino vio al player en los últimos N segundos y ahora está stuck, hay que esperar este tiempo FUERA de la vista del player antes de hacer TP. Da margen al jugador para esconderse antes del 'pop'.")]
+    [SerializeField] float stuckTpOutOfSightSeconds = 3f;
+    [Tooltip("Cuánto tiempo (s) recuerda el mino que vio al player. Si dentro de esta ventana se quedó stuck, espera el cooldown out-of-sight antes del TP.")]
+    [SerializeField] float minoSawPlayerMemorySeconds = 5f;
     [Tooltip("Radio (m) que el minotauro debe abandonar para resetear el contador de stuck. Si se queda dentro X s, se considera atascado.")]
     [SerializeField] float stuckRadius = 3f;
     [Tooltip("Y forzada del respawn: tras samplear XZ alrededor del jugador, el Warp queda fijado a esta altura (suele coincidir con el navmesh superior del mapa).")]
@@ -162,6 +172,8 @@ public class EnemyAIBase : MonoBehaviour
     [SerializeField] EnemyDetection detection;
 
     [Header("Audio")]
+    [Tooltip("Volumen global de las pisadas del minotauro. Se propaga al EnemyAnimator en Start. Subir si se escuchan muy bajas.")]
+    [Range(0f, 8f)][SerializeField] float footstepVolume = 2.8f;
     [Tooltip("AudioSource dedicado del minotauro (pisadas + idle breath). Si está vacío se intenta autoresolver.")]
     [SerializeField] AudioSource minotaurSource;
     [Tooltip("Fade-in del loop MinotaurIdleBreath al entrar a Idle/Patrol.")]
@@ -196,6 +208,11 @@ public class EnemyAIBase : MonoBehaviour
     float noSightTimer;              // segundos seguidos sin tener LoS con el jugador
     float farFromPlayerTimer;        // segundos seguidos por encima de farFromPlayerDistance
     float forcedRespawnCooldownTimer;
+
+    // Stuck-aware-of-player tracking
+    float minoLastSawPlayerTime = -999f;  // Time.time la última vez que detection.HasLineOfSight fue true.
+    float stuckPlayerCantSeeMeTimer;      // segundos consecutivos que el player NO me ve, mientras estoy stuck.
+    float stuckRerouteCooldown;           // cooldown entre reroutes (evita spam de SetDestination)
 
     // Stun (linterna)
     float stunTimer;
@@ -250,6 +267,8 @@ public class EnemyAIBase : MonoBehaviour
         SetState(State.Patrol); // Patrol funciona también sin patrolPoints (wander por NavMesh).
         // Inicializa speed sin lerp para evitar arrancar a 0 si el inspector lo dejó así.
         if (Agent != null) Agent.speed = targetSpeed;
+        // Propaga volumen de pasos al EnemyAnimator (el inspector del enemigo gobierna esto).
+        if (enemyAnim != null) enemyAnim.SetFootstepVolume(footstepVolume);
     }
 
     void Update()
@@ -276,6 +295,8 @@ public class EnemyAIBase : MonoBehaviour
         if (detection && detection.HasLineOfSight && player)
         {
             KnownPlayerPos = player.position;
+            // Registrar "vio al player ahora" → usado luego por la lógica del stuck.
+            minoLastSawPlayerTime = Time.time;
 
             // Memoria proporcional a la distancia: cuanto más cerca, más recuerda.
             // currentDistance ≤ closeDistance → memoria ×1.5
@@ -356,12 +377,16 @@ public class EnemyAIBase : MonoBehaviour
                 }
             case State.Attacking:
                 Agent.isStopped = true;                 // se planta para golpear
-                enemyAnim?.TriggerAttack();             // dispara el UnityEvent (Animator.Play "Attack", SFX, etc.)
-                // El daño puede venir por dos vías:
-                //   a) AnimationEvent "AttackFrame" → OnAttackFrame() (preferida, sincronizada al swing).
-                //   b) Fallback temporal en TickAttack() si la anim no llega a reproducir (p.ej. el
-                //      jugador se queda pegado y la transición Run→Attack no dispara el frame event).
-                //      Sin esto, el minotauro entra a Attacking pero nunca aplica daño.
+                // Fuerza la animación de Attack vía CrossFadeInFixedTime, INDEPENDIENTEMENTE
+                // de los bools del Animator (Chasing/Patrolling). Esto permite atacar desde
+                // Idle/Patrol/Chase sin depender de la transición Run→Attack del controller.
+                enemyAnim?.PlayAttackAnimation();
+                // OnAttack UnityEvent (legacy) sigue disparándose por compatibilidad —
+                // pero NO debe contener SFX ni Animator.Play (se gestiona aquí).
+                enemyAnim?.TriggerAttack();
+                // El daño viene del AnimationEvent "AttackFrame" → OnAttackFrame() (preferido).
+                // El fallback de TickAttack se mantiene por seguridad pero NO reproduce SFX —
+                // el sonido va exclusivamente desde el AnimationEvent AttackSfx() del clip.
                 attackDamageApplied = false;
                 break;
             case State.Idle: Agent.isStopped = true; break;
@@ -964,11 +989,52 @@ public class EnemyAIBase : MonoBehaviour
             stuckTimer += Time.deltaTime;
         }
 
+        if (stuckRerouteCooldown > 0f) stuckRerouteCooldown -= Time.deltaTime;
+
         // ── Triggers ────────────────────────────────────────────────────────
         bool noSightTrigger = diff.noSightRespawnSeconds > 0f && noSightTimer       >= diff.noSightRespawnSeconds;
         bool farTrigger     = diff.farFromPlayerSeconds  > 0f && farFromPlayerTimer >= diff.farFromPlayerSeconds;
-        // Stuck: SIEMPRE activo (incluso en Easy) — su propósito es desencallar al bicho.
-        bool stuckTrigger   = stuckRespawnSeconds > 0f && stuckTimer >= stuckRespawnSeconds;
+
+        // Stuck con escalación: easy → más calma, hard → más presión.
+        float resolvedStuckSeconds = stuckRespawnSeconds *
+            Mathf.Lerp(stuckEscalationCalmMul, stuckEscalationPressureMul, Mathf.Clamp01(DifficultyEscalation));
+        bool isStuckLong = stuckRespawnSeconds > 0f && stuckTimer >= resolvedStuckSeconds;
+
+        bool stuckTrigger = false;
+        if (isStuckLong)
+        {
+            bool playerLookingAtMino = IsPlayerLookingAtMe();
+            bool minoSawPlayerRecently = (Time.time - minoLastSawPlayerTime) <= minoSawPlayerMemorySeconds;
+
+            if (playerLookingAtMino)
+            {
+                // Player MIRÁNDOTE mientras estás stuck: no TP, busca otra ruta.
+                // El reroute tiene su propio cooldown para no rehacer paths cada frame.
+                if (stuckRerouteCooldown <= 0f && stuckTimer >= resolvedStuckSeconds + 0.5f)
+                {
+                    TryReroute();
+                    stuckRerouteCooldown = 1.5f;
+                }
+                // Resetea el contador de "fuera de vista" — si el player te ve, vuelve a 0.
+                stuckPlayerCantSeeMeTimer = 0f;
+            }
+            else if (minoSawPlayerRecently)
+            {
+                // Vi al player hace poco, ahora ya no me ve → espera N segundos antes de TP
+                // para no hacerlo justo cuando el player gira la cámara.
+                stuckPlayerCantSeeMeTimer += Time.deltaTime;
+                if (stuckPlayerCantSeeMeTimer >= stuckTpOutOfSightSeconds) stuckTrigger = true;
+            }
+            else
+            {
+                // Ni el player me ve ni yo lo he visto recientemente → TP directo.
+                stuckTrigger = true;
+            }
+        }
+        else
+        {
+            stuckPlayerCantSeeMeTimer = 0f;
+        }
 
         if (noSightTrigger || farTrigger || stuckTrigger)
         {
@@ -1225,18 +1291,89 @@ public class EnemyAIBase : MonoBehaviour
         if (vp.z <= 0f) return false;
         return vp.x > -0.05f && vp.x < 1.05f && vp.y > -0.05f && vp.y < 1.05f;
     }
+
+    /// <summary>
+    /// Devuelve true si el jugador está mirando al minotauro DE VERDAD:
+    /// el mino está dentro del frustum de la cámara del player Y hay línea de visión
+    /// directa (sin scenario en medio). Lo usa la lógica de stuck para decidir si TP
+    /// es seguro o si hay que buscar otra ruta primero.
+    /// </summary>
+    bool IsPlayerLookingAtMe()
+    {
+        var cam = Camera.main;
+        if (cam == null) return false;
+        // Punto representativo del mino (centro-cuerpo, no los pies).
+        Vector3 minoPos = transform.position + Vector3.up * 1.5f;
+        // Frustum check.
+        Vector3 vp = cam.WorldToViewportPoint(minoPos);
+        if (vp.z <= 0f) return false;
+        if (vp.x < 0f || vp.x > 1f || vp.y < 0f || vp.y > 1f) return false;
+        // LoS check: raycast desde la cam al mino. Si choca con scenario antes → no me ve.
+        if (scenarioOccluderMask.value == 0) return true; // sin layer no podemos validar, asumimos sí
+        Vector3 from = cam.transform.position;
+        Vector3 dir = minoPos - from;
+        float dist = dir.magnitude;
+        if (dist < 0.01f) return true; // pegado
+        dir /= dist;
+        if (Physics.Raycast(from, dir, dist - 0.2f, scenarioOccluderMask, QueryTriggerInteraction.Ignore))
+            return false;
+        return true;
+    }
+
+    /// <summary>
+    /// Recalcula una ruta nueva alejándose de la cámara del player. Se llama cuando el mino
+    /// está stuck + el player lo está mirando — en vez de hacer TP (que sería un pop visual)
+    /// intenta dar la vuelta. Tiene cooldown propio para no spamear SetDestination.
+    /// </summary>
+    void TryReroute()
+    {
+        var cam = Camera.main;
+        Vector3 awayDir;
+        if (cam != null)
+        {
+            awayDir = transform.position - cam.transform.position;
+            awayDir.y = 0f;
+            if (awayDir.sqrMagnitude < 0.01f) awayDir = -transform.forward;
+            else awayDir.Normalize();
+        }
+        else awayDir = -transform.forward;
+
+        // Probar varios candidatos en la dirección de huida — el primero que caiga en NavMesh, ese.
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            float dist = Random.Range(6f, 12f);
+            Vector3 jitter = new Vector3(Random.Range(-3f, 3f), 0f, Random.Range(-3f, 3f));
+            Vector3 candidate = transform.position + awayDir * dist + jitter;
+            if (NavMesh.SamplePosition(candidate, out var hit, 10f, NavMesh.AllAreas))
+            {
+                Agent.ResetPath();
+                Agent.SetDestination(hit.position);
+                // Resetea el anchor de stuck — le damos una oportunidad real de progresar.
+                stuckAnchor = transform.position;
+                stuckTimer = 0f;
+                return;
+            }
+        }
+    }
     #endregion
 
     void UpdateAnimatorBools()
     {
         if (!enemyAnim) return;
+        // Durante Attacking / Stunned NO tocamos los bools de locomoción. La animación de
+        // ataque se reproduce vía CrossFade forzado en SetState — si escribiéramos los bools
+        // aquí (Chasing=false porque Agent.isStopped=true, velocity≈0), el controller podría
+        // transicionar fuera del Attack a mitad de la animación. Y durante el stun queremos
+        // que el Animator.speed=0 mantenga el frame de pausa intacto.
+        if (CurrentState == State.Attacking || CurrentState == State.Stunned) return;
+
         // Solo reproducimos las animaciones de locomoción si el agente se mueve de verdad.
         bool actuallyMoving = !Agent.isStopped
                               && Agent.velocity.sqrMagnitude > 0.05f
                               && Agent.remainingDistance > Agent.stoppingDistance + 0.05f;
 
         bool inPatrolState = CurrentState == State.Patrol || CurrentState == State.Investigate;
-        bool inChaseState  = CurrentState == State.Chase  || CurrentState == State.Attacking;
+        bool inChaseState  = CurrentState == State.Chase;
 
         enemyAnim.SetPatrolling(inPatrolState && actuallyMoving);
         enemyAnim.SetChasing(inChaseState && actuallyMoving);

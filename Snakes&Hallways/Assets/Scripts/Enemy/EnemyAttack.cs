@@ -12,10 +12,10 @@ public class EnemyAttack : MonoBehaviour
     [SerializeField] bool fallbackToInstantKill = true;
 
     [Header("Knockback")]
-    [Tooltip("Fuerza del empujón al jugador en la dirección mino→player al impactar. Exagerado por default para que el golpe se sienta.")]
+    [Tooltip("Fuerza HORIZONTAL del empujón al jugador en la dirección mino→player. Es el componente principal del knockback.")]
     [SerializeField] float knockbackForce = 14f;
-    [Tooltip("Componente vertical del knockback. >0 levanta al jugador (lo despega del suelo para que no frene de golpe).")]
-    [SerializeField] float knockbackUp = 4f;
+    [Tooltip("Componente vertical (pequeño) del knockback. SOLO se aplica si el player está grounded (no saltando/en el aire) — para no joder caídas y mantener la sensación de 'me he llevado un empujón' sin convertir el golpe en un salto épico.")]
+    [SerializeField] float knockbackUpGrounded = 1.5f;
     [Tooltip("Si está activo, el knockback se aplica con ForceMode.VelocityChange (más consistente sin importar la masa del jugador).")]
     [SerializeField] bool knockbackUseVelocityChange = true;
     [Tooltip("Si está activo, antes de aplicar el impulso se resetea la velocidad horizontal del jugador para que el knockback no sume sobre el movimiento previo (sensación más limpia).")]
@@ -39,9 +39,12 @@ public class EnemyAttack : MonoBehaviour
 
     public void OpenWindow()
     {
+        // SFX del swing va EXCLUSIVAMENTE en el AnimationEvent 'AttackSfx' del clip Attack
+        // (EnemyAnimator.AttackSfx). Si lo reprodujéramos aquí, el fallback de TickAttack
+        // sonaría también cuando el mino "intenta atacar" sin que la animación se ejecute,
+        // dando la sensación fantasma de un golpe inexistente.
         StopAllCoroutines();
         StartCoroutine(WindowCo());
-        AudioManager.Instance?.PlaySFX(SFXId.MinotaurCharge, transform.position);
     }
 
     IEnumerator WindowCo()
@@ -77,12 +80,23 @@ public class EnemyAttack : MonoBehaviour
             Vector3 to = rb.worldCenterOfMass - origin;
             to.y = 0f;
             Vector3 dir = to.sqrMagnitude > 0.001f ? to.normalized : transform.forward;
-            Vector3 impulse = dir * knockbackForce + Vector3.up * knockbackUp;
+
+            // Vertical SOLO si el player está grounded — si está en el aire/saltando, no añadimos
+            // bump vertical para no joder la caída ni convertir el golpe en un mini-salto.
+            var pc = rb.GetComponentInParent<PlayerController>();
+            bool playerGrounded = pc != null ? pc.IsGrounded : true; // si no hay PC, conservador
+            float upComponent = playerGrounded ? knockbackUpGrounded : 0f;
+            Vector3 impulse = dir * knockbackForce + Vector3.up * upComponent;
 
             if (knockbackResetHorizontal)
             {
                 var v = rb.linearVelocity;
                 v.x = 0f; v.z = 0f;
+                // Si está en el aire, NO tocamos el componente vertical — preservar caída.
+                if (!playerGrounded)
+                {
+                    // mantener v.y intacto
+                }
                 rb.linearVelocity = v;
             }
             rb.AddForce(impulse, knockbackUseVelocityChange ? ForceMode.VelocityChange : ForceMode.Impulse);

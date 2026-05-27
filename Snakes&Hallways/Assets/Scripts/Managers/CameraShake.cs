@@ -1,8 +1,17 @@
 using UnityEngine;
 
 /// <summary>
-/// Singleton de shake de cámara. Aplica un offset posicional y rotacional
-/// (Perlin noise) sobre la cámara que esté ENABLED en cada momento.
+/// Singleton de shake. Aplica un offset posicional y rotacional (Perlin noise) sobre un
+/// <c>Transform</c> "anchor" que NADIE MÁS modifique por frame.
+///
+/// ⚠️ Bug histórico: cuando este script aplicaba el shake directamente sobre
+/// <c>Camera.transform.localPosition</c>, el head-bob del PlayerController (que escribe
+/// localPosition cada Update con un Lerp hacia su rest pose) "se comía" el offset del shake.
+/// Resultado: ningún shake visible aunque los Shake() se llamasen correctamente.
+///
+/// Fix: aplicamos el offset al <b>camHolder</b> (parent de la cámara) — el camHolder solo
+/// recibe rotación de look, nunca posición. Así el bob (en la cámara) y el shake (en su
+/// parent) coexisten sin pisarse.
 ///
 /// Uso desde código:
 ///   CameraShake.Shake(sourcePosition, baseIntensity, duration);
@@ -17,29 +26,36 @@ public class CameraShake : MonoBehaviour
 
     [Header("Defaults")]
     [Tooltip("Distancia (m) a partir de la cual la intensidad cae a 0.")]
-    [SerializeField] float maxDistance = 25f;
+    [SerializeField] float maxDistance = 30f;
     [Tooltip("Distancia (m) por debajo de la cual la intensidad se considera máxima.")]
     [SerializeField] float minDistance = 1.5f;
-    [Tooltip("Potencia de la caída con la distancia (1 = lineal, 2 = cuadrática).")]
-    [SerializeField] float falloffPower = 2f;
+    [Tooltip("Potencia de la caída con la distancia (1 = lineal, 2 = cuadrática). Bajar = el shake se nota más a distancias medias.")]
+    [SerializeField] float falloffPower = 1.4f;
 
-    [Header("Tracked camera (opcional)")]
-    [Tooltip("Cámara que recibirá el shake. Si se deja vacío se autoresuelve a Camera.main / Camera más activa con mayor depth. Asígnala explícitamente si tu cámara no es la 'main'.")]
-    [SerializeField] Camera explicitCamera;
+    [Header("Tracked anchor (opcional)")]
+    [Tooltip("Transform al que se aplica el shake (offset posicional + rotacional). Lo IDEAL es asignar aquí el 'camHolder' del player — un Transform que NO reciba localPosition de ningún otro script. Si se deja vacío, autoresuelve a parent(Camera.main).")]
+    [SerializeField] Transform explicitShakeAnchor;
 
     [Header("Shake parameters")]
-    [Tooltip("Multiplicador del offset posicional (metros). Subido: la antigua 0.12 con trauma^2 daba <3mm en pisadas.")]
-    [SerializeField] float positionAmplitude = 0.45f;
+    [Tooltip("Multiplicador del offset posicional (metros).")]
+    [SerializeField] float positionAmplitude = 0.6f;
     [Tooltip("Multiplicador del offset rotacional (grados).")]
-    [SerializeField] float rotationAmplitude = 5f;
+    [SerializeField] float rotationAmplitude = 6f;
     [Tooltip("Frecuencia del ruido (Hz).")]
     [SerializeField] float frequency = 22f;
+    [Tooltip("Decaimiento extra del trauma. >0 = el trauma cae más rápido (shake corto). Para shakes de pisadas un valor entre 4 y 8 da un 'thump' breve.")]
+    [SerializeField] float traumaFloorDecay = 0f;
+
+    [Header("Debug")]
+    [Tooltip("Loguea cada Shake recibido con la intensidad efectiva calculada (útil para diagnosticar pasos invisibles).")]
+    [SerializeField] bool debugShake;
 
     float trauma;            // 0..1, decae con el tiempo
     float traumaDecay = 1.6f;
     Vector2 noiseSeed;
 
-    Camera trackedCamera;
+    Transform trackedAnchor;
+    Camera referenceCamera;     // Cámara usada SOLO para el cálculo de distancia (no recibe shake)
     Vector3 baseLocalPos;
     Quaternion baseLocalRot;
     Vector3 lastPosOffset;
@@ -61,22 +77,26 @@ public class CameraShake : MonoBehaviour
         return Instance;
     }
 
-    /// <summary>Shake posicional con intensidad calculada por distancia (inversamente proporcional).</summary>
+    /// <summary>Shake con intensidad calculada por distancia (inversamente proporcional).</summary>
     public static void Shake(Vector3 sourcePosition, float baseIntensity, float duration = 0.25f)
     {
         var cs = EnsureInstance();
-        var cam = cs.GetActiveCamera();
-        if (!cam) return;
-        float dist = Vector3.Distance(sourcePosition, cam.transform.position);
+        var refCam = cs.GetReferenceCamera();
+        // La distancia se mide a la cámara, no al anchor (la cámara puede no ser hija del anchor).
+        Vector3 referencePos = refCam != null ? refCam.transform.position : (cs.trackedAnchor != null ? cs.trackedAnchor.position : cs.transform.position);
+        float dist = Vector3.Distance(sourcePosition, referencePos);
         float t = Mathf.InverseLerp(cs.maxDistance, cs.minDistance, dist); // 0 lejos → 1 cerca
         t = Mathf.Pow(Mathf.Clamp01(t), cs.falloffPower);
-        cs.AddTrauma(baseIntensity * t, duration);
+        float effective = baseIntensity * t;
+        if (cs.debugShake) Debug.Log($"[CameraShake] Shake src={sourcePosition} base={baseIntensity:F2} dist={dist:F1} → effective={effective:F3}, anchor={(cs.trackedAnchor != null ? cs.trackedAnchor.name : "<null>")}", cs);
+        cs.AddTrauma(effective, duration);
     }
 
     /// <summary>Shake con intensidad fija, sin atenuación por distancia.</summary>
     public static void ShakeUniform(float intensity, float duration = 0.25f)
     {
         var cs = EnsureInstance();
+        if (cs.debugShake) Debug.Log($"[CameraShake] ShakeUniform intensity={intensity:F2}", cs);
         cs.AddTrauma(intensity, duration);
     }
 
@@ -84,71 +104,78 @@ public class CameraShake : MonoBehaviour
     {
         if (amount <= 0f) return;
         trauma = Mathf.Clamp01(trauma + amount);
-        if (duration > 0f) traumaDecay = 1f / duration;
+        if (duration > 0f) traumaDecay = 1f / duration + traumaFloorDecay;
     }
 
-    Camera GetActiveCamera()
+    Camera GetReferenceCamera()
     {
-        // 1) Si el usuario ha asignado una cámara explícita en el inspector, esa manda.
-        if (explicitCamera && explicitCamera.isActiveAndEnabled)
-        {
-            if (trackedCamera != explicitCamera) AdoptCamera(explicitCamera);
-            return trackedCamera;
-        }
-        // 2) Cámara cacheada si sigue válida.
-        if (trackedCamera && trackedCamera.isActiveAndEnabled) return trackedCamera;
-        // 3) Autoresolución: Camera.main primero, luego la mayor 'depth' activa.
-        Camera best = Camera.main;
-        if (best == null || !best.isActiveAndEnabled)
+        if (referenceCamera != null && referenceCamera.isActiveAndEnabled) return referenceCamera;
+        referenceCamera = Camera.main;
+        if (referenceCamera == null || !referenceCamera.isActiveAndEnabled)
         {
             foreach (var c in Camera.allCameras)
             {
                 if (!c || !c.isActiveAndEnabled) continue;
-                if (best == null || c.depth > best.depth) best = c;
+                if (referenceCamera == null || c.depth > referenceCamera.depth) referenceCamera = c;
             }
         }
-        if (best != trackedCamera) AdoptCamera(best);
-        return trackedCamera;
+        return referenceCamera;
     }
 
-    void AdoptCamera(Camera cam)
+    Transform GetActiveAnchor()
     {
-        // Restauramos baseline de la cámara anterior antes de cambiar.
-        RestoreBaseline();
-        trackedCamera = cam;
-        if (trackedCamera)
+        // 1) Usuario asigna explícitamente — confiamos.
+        if (explicitShakeAnchor != null && explicitShakeAnchor.gameObject.activeInHierarchy)
         {
-            baseLocalPos = trackedCamera.transform.localPosition;
-            baseLocalRot = trackedCamera.transform.localRotation;
+            if (trackedAnchor != explicitShakeAnchor) AdoptAnchor(explicitShakeAnchor);
+            return trackedAnchor;
+        }
+        // 2) Cache válido.
+        if (trackedAnchor != null && trackedAnchor.gameObject.activeInHierarchy) return trackedAnchor;
+        // 3) Autoresolución: parent de Camera.main (típicamente camHolder).
+        //    Si la cámara no tiene padre, fallback a la cámara misma — peor caso (revertimos al
+        //    comportamiento legacy con potential head-bob conflict).
+        var cam = GetReferenceCamera();
+        if (cam == null) return null;
+        Transform anchor = cam.transform.parent != null ? cam.transform.parent : cam.transform;
+        if (anchor != trackedAnchor) AdoptAnchor(anchor);
+        return trackedAnchor;
+    }
+
+    void AdoptAnchor(Transform t)
+    {
+        RestoreBaseline();
+        trackedAnchor = t;
+        if (trackedAnchor != null)
+        {
+            baseLocalPos = trackedAnchor.localPosition;
+            baseLocalRot = trackedAnchor.localRotation;
+            lastPosOffset = Vector3.zero;
+            lastRotOffset = Quaternion.identity;
         }
     }
 
     void RestoreBaseline()
     {
-        if (!trackedCamera) return;
-        trackedCamera.transform.localPosition = baseLocalPos;
-        trackedCamera.transform.localRotation = baseLocalRot;
+        if (trackedAnchor == null) return;
+        trackedAnchor.localPosition = baseLocalPos;
+        trackedAnchor.localRotation = baseLocalRot;
     }
 
     void LateUpdate()
     {
-        // Validar cámara activa y refrescar baseline si el padre la mueve cada frame
-        // (p.ej. el PlayerController coloca la cámara en su sitio antes de LateUpdate del shake).
-        var cam = GetActiveCamera();
-        if (!cam) return;
+        var anchor = GetActiveAnchor();
+        if (anchor == null) return;
 
-        // Capturamos baseline RESTANDO el offset que aplicamos el frame anterior, para que
-        // el shake no se absorba en la baseline y derive. Si el PlayerController re-posicionó
-        // la cámara este frame antes de nosotros, el offset previo ya no estaría aplicado
-        // pero restarlo es seguro (compensa después al sumar el nuevo offset).
-        baseLocalPos = cam.transform.localPosition - lastPosOffset;
-        baseLocalRot = cam.transform.localRotation * Quaternion.Inverse(lastRotOffset);
+        // baseline = estado actual del anchor restando el offset que aplicamos el frame anterior.
+        // Como NADIE escribe sobre el anchor (camHolder), baseLocalPos será estable.
+        baseLocalPos = anchor.localPosition - lastPosOffset;
+        baseLocalRot = anchor.localRotation * Quaternion.Inverse(lastRotOffset);
 
         if (trauma <= 0f)
         {
-            // Sin trauma: dejamos la cámara en su baseline limpia y limpiamos offsets.
-            cam.transform.localPosition = baseLocalPos;
-            cam.transform.localRotation = baseLocalRot;
+            anchor.localPosition = baseLocalPos;
+            anchor.localRotation = baseLocalRot;
             lastPosOffset = Vector3.zero;
             lastRotOffset = Quaternion.identity;
             return;
@@ -167,8 +194,8 @@ public class CameraShake : MonoBehaviour
         Vector3 rotOffset = new Vector3(rx, ry, rz) * (rotationAmplitude * shake);
 
         Quaternion rotQ = Quaternion.Euler(rotOffset);
-        cam.transform.localPosition = baseLocalPos + posOffset;
-        cam.transform.localRotation = baseLocalRot * rotQ;
+        anchor.localPosition = baseLocalPos + posOffset;
+        anchor.localRotation = baseLocalRot * rotQ;
         lastPosOffset = posOffset;
         lastRotOffset = rotQ;
 

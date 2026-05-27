@@ -32,33 +32,33 @@ public class LampDitherLight : MonoBehaviour
     }
 
     [Header("Cookie texture")]
-    [Tooltip("Resolución de la cookie (px). 256 es un buen punto. Subir si se nota pixelado al apuntar de cerca.")]
-    [SerializeField] int resolution = 256;
-    [Tooltip("Patrón base del dithering.")]
-    [SerializeField] DitherPattern pattern = DitherPattern.Bayer;
-    [Tooltip("Escala del patrón (px). Más alto = grano más grueso. 1 = 1 píxel del patrón por píxel de cookie.")]
-    [Range(1, 16)][SerializeField] int patternScale = 3;
+    [Tooltip("Resolución de la cookie (px). Más BAJA = grano más grueso y visible (look medieval). Más alta = grano fino apenas perceptible.")]
+    [SerializeField] int resolution = 128;
+    [Tooltip("Patrón base del dithering. FilmGrain es el más visible/orgánico, recomendado para look medieval.")]
+    [SerializeField] DitherPattern pattern = DitherPattern.FilmGrain;
+    [Tooltip("Escala del patrón (px). Más alto = grano más grueso. 1 = 1 píxel del patrón por píxel de cookie. Default subido a 6 para que el grano se VEA.")]
+    [Range(1, 16)][SerializeField] int patternScale = 6;
 
     [Header("Apariencia")]
     [Tooltip("Color tintado de la cookie (se multiplica sobre el patrón).")]
     [SerializeField] Color tint = new Color(1f, 0.86f, 0.55f, 1f);
-    [Tooltip("Fuerza del dithering. 0 = luz uniforme (sin grano). 1 = grano máximo.")]
-    [Range(0f, 1f)][SerializeField] float ditherStrength = 0.55f;
+    [Tooltip("Fuerza del dithering. 0 = luz uniforme (sin grano). 1 = grano máximo. Default subido a 0.85 para que se note el granulado.")]
+    [Range(0f, 1f)][SerializeField] float ditherStrength = 0.85f;
     [Tooltip("Falloff radial: cuánto se atenúa el cookie hacia los bordes. 0 = cookie cuadrada (sin atenuación). 1 = cookie circular suave.")]
-    [Range(0f, 1f)][SerializeField] float radialFalloff = 0.9f;
+    [Range(0f, 1f)][SerializeField] float radialFalloff = 0.85f;
     [Tooltip("Suavidad del borde radial. 0 = borde duro. 1 = borde muy suave (gradual).")]
-    [Range(0f, 1f)][SerializeField] float edgeSoftness = 0.4f;
-    [Tooltip("Brillo mínimo (0..1). Útil para que ningún píxel del cookie sea totalmente negro y la luz se vea apagada en zonas oscuras del patrón.")]
-    [Range(0f, 1f)][SerializeField] float floor = 0.15f;
+    [Range(0f, 1f)][SerializeField] float edgeSoftness = 0.35f;
+    [Tooltip("Brillo mínimo (0..1). Útil para que ningún píxel del cookie sea totalmente negro y la luz se vea apagada en zonas oscuras del patrón. Bajado a 0.05 para mayor contraste.")]
+    [Range(0f, 1f)][SerializeField] float floor = 0.05f;
 
     [Header("Animación (granulado vivo)")]
-    [Tooltip("Si está activo, la cookie se regenera cada animateInterval para que el grano 'baile' como un proyector viejo.")]
-    [SerializeField] bool animateInRuntime = false;
+    [Tooltip("Si está activo, la cookie se regenera cada animateInterval para que el grano 'baile' como un proyector viejo. ACTIVADO por default — sin animación el grano queda 'congelado' y parece estático sobre el suelo.")]
+    [SerializeField] bool animateInRuntime = true;
     [Tooltip("Segundos entre regeneraciones. Bajo = grano frenético. Subir para look más calmado.")]
-    [SerializeField] float animateInterval = 0.08f;
+    [SerializeField] float animateInterval = 0.1f;
 
     [Header("Filtering")]
-    [Tooltip("Filtro de la textura. Point preserva el look pixelado retro. Bilinear suaviza el grano.")]
+    [Tooltip("Filtro de la textura. Point preserva el look pixelado retro (medieval). Bilinear suaviza el grano (más moderno).")]
     [SerializeField] FilterMode filterMode = FilterMode.Point;
 
     Light lampLight;
