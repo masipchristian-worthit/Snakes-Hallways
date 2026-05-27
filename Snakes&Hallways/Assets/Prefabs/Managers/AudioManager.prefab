@@ -184,6 +184,12 @@ MonoBehaviour:
     volume: 1
     minPitch: 0.95
     maxPitch: 1.05
+  - id: 30
+    variants:
+    - {fileID: 8300000, guid: 0454bc781de7fa44c8bcbb83f044239a, type: 3}
+    volume: 1
+    minPitch: 0.95
+    maxPitch: 1.05
   musicLibrary:
   - id: 1
     clip: {fileID: 8300000, guid: 86ea5a1a545ae4343b0f21f64489c795, type: 3}
