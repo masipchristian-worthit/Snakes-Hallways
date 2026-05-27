@@ -29,11 +29,13 @@ public class SettingsManager : MonoBehaviour
     public InputActionAsset InputActions => inputActions;
 
     [Header("Defaults")]
-    [Range(0f, 1f)] [SerializeField] float defaultMaster = 1f;
-    [Range(0f, 1f)] [SerializeField] float defaultSfx = 1f;
-    [Range(0f, 1f)] [SerializeField] float defaultMusic = 0.8f;
-    [Range(0f, 1f)] [SerializeField] float defaultUi = 1f;
-    [Range(0.01f, 2f)] [SerializeField] float defaultSensitivity = 0.1f;
+    [Tooltip("Default 50% — punto medio. El usuario puede subir o bajar según preferencia.")]
+    [Range(0f, 1f)] [SerializeField] float defaultMaster = 0.5f;
+    [Range(0f, 1f)] [SerializeField] float defaultSfx = 0.5f;
+    [Range(0f, 1f)] [SerializeField] float defaultMusic = 0.5f;
+    [Range(0f, 1f)] [SerializeField] float defaultUi = 0.5f;
+    [Tooltip("Default 0.5 — equivalente aproximado a la sensibilidad por defecto de Windows. El rango va de 0.01 a 2.")]
+    [Range(0.01f, 2f)] [SerializeField] float defaultSensitivity = 0.5f;
 
     const string K_Master = "SH_VolMaster";
     const string K_Sfx    = "SH_VolSfx";

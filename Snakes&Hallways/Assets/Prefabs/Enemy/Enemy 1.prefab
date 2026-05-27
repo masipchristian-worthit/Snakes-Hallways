@@ -1905,6 +1905,12 @@ MonoBehaviour:
   portalProximityCooldownMul: 0.4
   portalProximityDistance: 18
   minotaurTpVolume: 1
+  minotaurTpMaxDistance: 60
+  minotaurTpFullVolumeDistance: 8
+  minotaurTpSkipIfSpyCam: 1
+  minotaurTpPausesIdleBreath: 1
+  tpShakeIntensity: 1.4
+  tpShakeDuration: 0.65
   stunDuration: 2.5
   stunOutlineColor: {r: 0.45763028, g: 0.0316244, b: 0.7735849, a: 1}
   stunOutlineIntensity: 2.5
@@ -1913,6 +1919,10 @@ MonoBehaviour:
   allowAttackFromIdle: 1
   chaseLeadTime: 0.35
   chaseMaxLeadDistance: 4
+  trailExtensionDistance: 5
+  trailDecaySeconds: 2.5
+  playerReachableMaxNavMeshDistance: 3
+  abortChaseIfUnreachable: 1
   spiralSearchPoints: 4
   spiralMinRadius: 3
   spiralMaxRadius: 9
@@ -1979,12 +1989,17 @@ MonoBehaviour:
   OnAlert:
     m_PersistentCalls:
       m_Calls: []
+  attackStateName: Attack
+  attackStateLayer: 0
+  attackCrossFade: 0.06
   walkStepShake: 0.15
   runStepShake: 0.45
   stepShakeDuration: 0.18
   walkStepSfx: 11
   runStepSfx: 11
   footstepVolumeMul: 4
+  footstepMinDistance: 3
+  footstepMaxDistance: 50
   attackSfx: 13
   attackSfxVolume: 0.49
   debugFootsteps: 1

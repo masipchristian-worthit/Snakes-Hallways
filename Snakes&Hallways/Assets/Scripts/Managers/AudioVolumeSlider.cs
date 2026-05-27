@@ -7,6 +7,8 @@ public class AudioVolumeSlider : MonoBehaviour
     public enum Channel { Master, SFX, Music, UI }
 
     [SerializeField] Channel channel = Channel.Master;
+    [Tooltip("Valor inicial del slider si SettingsManager aún no está disponible. 0.5 = 50%, punto medio.")]
+    [Range(0f, 1f)][SerializeField] float defaultValue = 0.5f;
 
     Slider slider;
 
@@ -15,6 +17,8 @@ public class AudioVolumeSlider : MonoBehaviour
         slider = GetComponent<Slider>();
         slider.minValue = 0f;
         slider.maxValue = 1f;
+        // Default sano por si SettingsManager no está aún disponible o no tiene PlayerPrefs guardados.
+        slider.SetValueWithoutNotify(defaultValue);
         slider.onValueChanged.AddListener(OnChanged);
     }
 

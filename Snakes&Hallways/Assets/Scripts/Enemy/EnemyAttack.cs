@@ -14,8 +14,8 @@ public class EnemyAttack : MonoBehaviour
     [Header("Knockback")]
     [Tooltip("Fuerza HORIZONTAL del empujón al jugador en la dirección mino→player. Es el componente principal del knockback.")]
     [SerializeField] float knockbackForce = 14f;
-    [Tooltip("Componente vertical (pequeño) del knockback. SOLO se aplica si el player está grounded (no saltando/en el aire) — para no joder caídas y mantener la sensación de 'me he llevado un empujón' sin convertir el golpe en un salto épico.")]
-    [SerializeField] float knockbackUpGrounded = 1.5f;
+    [Tooltip("Componente vertical (MUY pequeño) del knockback. SOLO se aplica si el player está grounded (no saltando/en el aire) — apenas un toquecito para vender el golpe sin que el player salga volando hacia arriba.")]
+    [SerializeField] float knockbackUpGrounded = 0.4f;
     [Tooltip("Si está activo, el knockback se aplica con ForceMode.VelocityChange (más consistente sin importar la masa del jugador).")]
     [SerializeField] bool knockbackUseVelocityChange = true;
     [Tooltip("Si está activo, antes de aplicar el impulso se resetea la velocidad horizontal del jugador para que el knockback no sume sobre el movimiento previo (sensación más limpia).")]

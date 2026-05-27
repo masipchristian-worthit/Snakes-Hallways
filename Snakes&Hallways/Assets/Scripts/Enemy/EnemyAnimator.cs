@@ -30,10 +30,33 @@ public class EnemyAnimator : MonoBehaviour
 
     public bool LocomotionLocked => false;
 
+    AudioSource footstepSource;
+
     void Awake()
     {
         anim = GetComponent<Animator>();
         aiCached = GetComponent<EnemyAIBase>();
+        EnsureFootstepSource();
+    }
+
+    /// <summary>
+    /// AudioSource DEDICADO para las pisadas — rolloff lineal y maxDistance amplio.
+    /// El pool genérico del AudioManager usa rolloff logarítmico (decae rapidísimo);
+    /// con éste las pisadas se escuchan fuerte y desde lejos.
+    /// </summary>
+    void EnsureFootstepSource()
+    {
+        if (footstepSource != null) return;
+        var go = new GameObject("AS_MinoFootsteps");
+        go.transform.SetParent(transform, false);
+        footstepSource = go.AddComponent<AudioSource>();
+        footstepSource.playOnAwake = false;
+        footstepSource.spatialBlend = 1f;
+        footstepSource.rolloffMode = AudioRolloffMode.Linear;
+        footstepSource.minDistance = footstepMinDistance;
+        footstepSource.maxDistance = footstepMaxDistance;
+        footstepSource.dopplerLevel = 0f;
+        footstepSource.volume = 1f;
     }
 
     public void SetPatrolling(bool v) => anim.SetBool(HashPatrolling, v);
@@ -77,19 +100,23 @@ public class EnemyAnimator : MonoBehaviour
     }
 
     [Header("Footstep shake")]
-    [Tooltip("Intensidad base del shake al pisar caminando (se atenúa por distancia en CameraShake). Subido considerablemente — el shake del legacy era invisible por culpa del head-bob del player escribiendo sobre la misma transform que el shake.")]
-    [SerializeField] float walkStepShake = 0.5f;
-    [Tooltip("Intensidad base del shake al pisar corriendo.")]
-    [SerializeField] float runStepShake = 1.1f;
-    [SerializeField] float stepShakeDuration = 0.22f;
+    [Tooltip("Intensidad base del shake al pisar caminando (se atenúa por distancia en CameraShake). MUY ALTO — el mino es enorme, queremos que cuando pisa cerca tiemble el suelo de verdad.")]
+    [SerializeField] float walkStepShake = 1.6f;
+    [Tooltip("Intensidad base del shake al pisar corriendo. MUY ALTO — un T-Rex que se acerca, no un humano.")]
+    [SerializeField] float runStepShake = 2.8f;
+    [SerializeField] float stepShakeDuration = 0.28f;
 
     [Header("Footstep SFX")]
     [Tooltip("ID del sonido reproducido en pisadas de Walk.")]
     [SerializeField] SFXId walkStepSfx = SFXId.MinotaurStep;
     [Tooltip("ID del sonido reproducido en pisadas de Run.")]
     [SerializeField] SFXId runStepSfx = SFXId.MinotaurStep;
-    [Tooltip("Multiplicador global del volumen de las pisadas. Lo setea EnemyAIBase desde su inspector — NO lo cambies aquí salvo para testing.")]
-    [Range(0f, 8f)][SerializeField] float footstepVolumeMul = 2.5f;
+    [Tooltip("Multiplicador global del volumen de las pisadas. Lo setea EnemyAIBase desde su inspector. PlayOneShot se aplica con este valor — Unity acepta valores >1 (saturación más alta), así que sube hasta 4-5 sin miedo si quieres pisadas muy fuertes.")]
+    [Range(0f, 8f)][SerializeField] float footstepVolumeMul = 4f;
+    [Tooltip("Distancia (m) hasta la que las pisadas suenan a volumen máximo. >=2-3m para que cerca no sature.")]
+    [SerializeField] float footstepMinDistance = 3f;
+    [Tooltip("Distancia (m) a partir de la cual las pisadas dejan de oírse. AMPLIO para que se escuchen lejos.")]
+    [SerializeField] float footstepMaxDistance = 50f;
 
     [Header("Attack SFX (animation event)")]
     [Tooltip("Sonido del swing del ataque del minotauro. Lo dispara el AnimationEvent 'AttackSfx' colocado en el frame de impacto.")]
@@ -178,8 +205,7 @@ public class EnemyAnimator : MonoBehaviour
         if (fromAnimationEvent) lastFootstepEventTime = Time.time;
         if (debugFootsteps) Debug.Log($"[Mino] FootstepWalk fired (fromEvent={fromAnimationEvent}) vol={footstepVolumeMul}", this);
         CameraShake.Shake(transform.position, walkStepShake, stepShakeDuration);
-        if (walkStepSfx != SFXId.None)
-            AudioManager.Instance?.PlaySFX(walkStepSfx, transform.position, Mathf.Max(0f, footstepVolumeMul));
+        PlayFootstepSfx(walkStepSfx);
         OnFootstepWalk?.Invoke();
     }
 
@@ -188,9 +214,30 @@ public class EnemyAnimator : MonoBehaviour
         if (fromAnimationEvent) lastFootstepEventTime = Time.time;
         if (debugFootsteps) Debug.Log($"[Mino] FootstepRun fired (fromEvent={fromAnimationEvent}) vol={footstepVolumeMul}", this);
         CameraShake.Shake(transform.position, runStepShake, stepShakeDuration);
-        if (runStepSfx != SFXId.None)
-            AudioManager.Instance?.PlaySFX(runStepSfx, transform.position, Mathf.Max(0f, footstepVolumeMul));
+        PlayFootstepSfx(runStepSfx);
         OnFootstepRun?.Invoke();
+    }
+
+    /// <summary>
+    /// Reproduce el clip de pisada en el AudioSource DEDICADO (rolloff Linear, maxDistance amplio).
+    /// PlayOneShot acepta volumeScale > 1, así footstepVolumeMul puede subir bien por encima de 1
+    /// y obtener pisadas verdaderamente fuertes sin tocar los assets.
+    /// </summary>
+    void PlayFootstepSfx(SFXId id)
+    {
+        if (id == SFXId.None) return;
+        EnsureFootstepSource();
+        if (footstepSource == null) return;
+        // Re-aplicar parámetros por si el usuario los toca en runtime.
+        footstepSource.minDistance = Mathf.Max(0.1f, footstepMinDistance);
+        footstepSource.maxDistance = Mathf.Max(footstepSource.minDistance + 1f, footstepMaxDistance);
+        footstepSource.rolloffMode = AudioRolloffMode.Linear;
+        footstepSource.transform.position = transform.position;
+
+        var clip = AudioManager.Instance != null ? AudioManager.Instance.GetClip(id) : null;
+        if (clip == null) return;
+        // PlayOneShot con multiplier — soporta valores > 1 sin saturar (es escala lineal sobre el sample).
+        footstepSource.PlayOneShot(clip, Mathf.Max(0f, footstepVolumeMul));
     }
 
     /// <summary>API pública para que EnemyAIBase ajuste el volumen de las pisadas desde su inspector.</summary>

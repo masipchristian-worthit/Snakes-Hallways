@@ -37,6 +37,10 @@ public class PlayerController : MonoBehaviour
     #region Inspector — Jump & GroundCheck
     [Header("Jump")]
     [SerializeField] float jumpForce = 5f;
+    [Tooltip("Intensidad del CameraShake al iniciar un salto. 0 = desactivado. Leve por defecto — solo un toque de feedback, no un terremoto.")]
+    [SerializeField] float jumpShakeIntensity = 0.25f;
+    [Tooltip("Duración (s) del shake del salto.")]
+    [SerializeField] float jumpShakeDuration = 0.15f;
     [Tooltip("Tiempo tras dejar el suelo en el que aún se puede saltar.")]
     [SerializeField] float coyoteTime = 0.12f;
     [Tooltip("Tiempo durante el que el último pulso de salto sigue contando si tocas suelo.")]
@@ -107,6 +111,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float swayLerpSpeed = 9f;
     [Tooltip("Empuje hacia adelante/atrás cuando el jugador acelera o frena.")]
     [SerializeField] float swayAccelKick = 0.04f;
+    [Tooltip("Suavizado del lookInput crudo antes de usarlo en el sway. Más alto = sigue el ratón más rápido (puede aparecer trompicones). Más bajo = más suave (puede sentirse 'lazy'). 10-16 da una mano muy suave; 22-28 una mano más reactiva.")]
+    [SerializeField] float lookInputSmoothing = 14f;
 
     [Header("Arm Sway — Walk Bob")]
     [SerializeField] float armBobAmpWalk = 0.012f;
@@ -225,6 +231,7 @@ public class PlayerController : MonoBehaviour
     // Arm sway derived
     Vector3 armCurrentPosOffset;
     Vector3 armCurrentEulerOffset;
+    Vector2 smoothedLookInput; // versión suavizada de lookInput para que el sway no dé trompicones
 
     // Animator triggers (los controllers solo tienen Draw / ReverseDraw)
     static readonly int HashDraw        = Animator.StringToHash("Draw");
@@ -496,6 +503,10 @@ public class PlayerController : MonoBehaviour
 
         // arm dip for jump
         landImpulse -= armJumpDip;
+
+        // Shake breve al saltar — feedback de "te has impulsado del suelo".
+        if (jumpShakeIntensity > 0f)
+            CameraShake.ShakeUniform(jumpShakeIntensity, jumpShakeDuration);
     }
 
     void ApplyJumpCut()
@@ -576,10 +587,16 @@ public class PlayerController : MonoBehaviour
     {
         if (!armRoot) return;
 
-        // Mouse-driven overlap: arm lags behind look direction.
+        // ── Suavizar lookInput ─────────────────────────────────────────────
+        // El lookInput crudo viene del Input System como DELTA por frame del ratón —
+        // ráfagas y picos hacen que el brazo dé "trompicones". Lo lerpamos a una versión
+        // suavizada (smoothedLookInput) y usamos ESA para el sway.
+        smoothedLookInput = Vector2.Lerp(smoothedLookInput, lookInput, Time.deltaTime * Mathf.Max(0.01f, lookInputSmoothing));
+
+        // Mouse-driven overlap: arm lags behind look direction (versión suavizada).
         Vector3 targetPosOffset = new Vector3(
-            -lookInput.x * swayPosAmount * 0.5f,
-            -lookInput.y * swayPosAmount * 0.5f,
+            -smoothedLookInput.x * swayPosAmount * 0.5f,
+            -smoothedLookInput.y * swayPosAmount * 0.5f,
             0f);
 
         // Strafe / forward planar accel pushes the arm
@@ -604,10 +621,10 @@ public class PlayerController : MonoBehaviour
         // Vertical impulse from jump/landing
         targetPosOffset.y += landImpulse;
 
-        // Rotational overlap (pitch/yaw/roll)
+        // Rotational overlap (pitch/yaw/roll) — también con smoothedLookInput.
         Vector3 targetEulerOffset = new Vector3(
-            lookInput.y * swayRotAmount * 0.5f,
-            -lookInput.x * swayRotAmount * 0.5f,
+            smoothedLookInput.y * swayRotAmount * 0.5f,
+            -smoothedLookInput.x * swayRotAmount * 0.5f,
             -moveInput.x * swayRotAmount * 0.4f + Mathf.Sin(bobTimer) * armBobRotAmp * (IsMoving ? 1f : 0f));
 
         // Smooth toward targets (lerp = lag / overlap)

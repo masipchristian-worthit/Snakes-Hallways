@@ -124,8 +124,20 @@ public class EnemyAIBase : MonoBehaviour
     [SerializeField] float portalProximityDistance = 18f;
 
     [Header("Forced Respawn — Audio TP")]
-    [Tooltip("Volumen del SFX MinotaurTP que se reproduce tras un TP. 0 = desactivado.")]
-    [Range(0f, 2f)][SerializeField] float minotaurTpVolume = 1f;
+    [Tooltip("Volumen del SFX MinotaurTP. Va a un AudioSource dedicado con rolloff lineal, no al pool genérico — así suena fuerte sin saturar el resto.")]
+    [Range(0f, 6f)][SerializeField] float minotaurTpVolume = 3f;
+    [Tooltip("Distancia (m) a partir de la cual el SFX MinotaurTP deja de oírse. Subir para que se escuche desde más lejos.")]
+    [SerializeField] float minotaurTpMaxDistance = 60f;
+    [Tooltip("Distancia (m) hasta la que el TP suena a volumen máximo (luego cae linealmente hasta maxDistance). Subir para que se oiga lleno en un radio mayor.")]
+    [SerializeField] float minotaurTpFullVolumeDistance = 8f;
+    [Tooltip("Si el player está usando la spy cam del mino, NO se reproduce el TP (estaríamos sonando 'desde dentro' del mino, no tiene sentido).")]
+    [SerializeField] bool minotaurTpSkipIfSpyCam = true;
+    [Tooltip("Pausa el loop MinotaurIdleBreath mientras dura el TP — el gruñido del TP es el evento principal, el breath sería ruido encima.")]
+    [SerializeField] bool minotaurTpPausesIdleBreath = true;
+    [Tooltip("Intensidad base del CameraShake del TP. La atenuación por distancia del CameraShake hace que a ≥12m sea leve y a <5m sea fuerte. 1.0-1.6 es buen rango.")]
+    [SerializeField] float tpShakeIntensity = 1.4f;
+    [Tooltip("Duración (s) del CameraShake del TP.")]
+    [SerializeField] float tpShakeDuration = 0.65f;
 
     [Header("Stun (Linterna)")]
     [Tooltip("Tiempo (s) que dura el stun cuando la linterna lo activa durante un ataque.")]
@@ -148,6 +160,18 @@ public class EnemyAIBase : MonoBehaviour
     [SerializeField] float chaseLeadTime = 0.35f;
     [Tooltip("Clamp del offset de predicción para no sobre-anticipar en sprints largos.")]
     [SerializeField] float chaseMaxLeadDistance = 4f;
+
+    [Header("Chase — Rastro tras perder LoS")]
+    [Tooltip("Cuando el mino pierde LoS pero aún tiene KnownPlayerPos válida, extiende el destino en la dirección de la última velocidad conocida del player. Crea sensación de 'rastro' — el mino sigue corriendo donde creía que iba el jugador antes de cambiar de plan.")]
+    [SerializeField] float trailExtensionDistance = 5f;
+    [Tooltip("Decaimiento del rastro: el offset extra se atenúa linealmente sobre esta duración (s). Default ~chaseMemory.")]
+    [SerializeField] float trailDecaySeconds = 2.5f;
+
+    [Header("Chase — Reachability")]
+    [Tooltip("Si el player está a MÁS de esta distancia del NavMesh (encima de cajas, tejados, etc.) el mino NO lo persigue — sería un chase imposible. 0 = desactivado (el mino siempre intenta perseguir).")]
+    [SerializeField] float playerReachableMaxNavMeshDistance = 3f;
+    [Tooltip("Si está activo, abortar también un chase ya en curso si el jugador se vuelve no-alcanzable. Si false, el mino se queda atascado contra una pared mientras el player esté arriba.")]
+    [SerializeField] bool abortChaseIfUnreachable = true;
 
     [Header("Search — espiral tras perder LoS")]
     [Tooltip("Nº de waypoints de la espiral de búsqueda tras agotar chaseMemory. 0 = desactivado (legacy: ir directo al last known).")]
@@ -184,6 +208,8 @@ public class EnemyAIBase : MonoBehaviour
     [Range(0f, 1f)][SerializeField] float idleBreathVolume = 1f;
 
     bool idleBreathActive;
+    AudioSource tpAudioSource;          // AudioSource dedicado al SFX MinotaurTP con rolloff lineal
+    Coroutine breathPauseCo;            // Corrutina activa de pausa del breath durante el TP
 
     public State CurrentState { get; private set; } = State.Patrol;
     public NavMeshAgent Agent { get; private set; }
@@ -213,6 +239,11 @@ public class EnemyAIBase : MonoBehaviour
     float minoLastSawPlayerTime = -999f;  // Time.time la última vez que detection.HasLineOfSight fue true.
     float stuckPlayerCantSeeMeTimer;      // segundos consecutivos que el player NO me ve, mientras estoy stuck.
     float stuckRerouteCooldown;           // cooldown entre reroutes (evita spam de SetDestination)
+
+    // Trail tracking (rastro tras perder LoS)
+    Vector3 lastKnownPlayerVelocity;      // playerVelocity congelado en el último frame con LoS.
+    float lastLoSLossTime = -999f;        // Time.time del último instante en que se perdió LoS.
+    bool hadLoSLastFrame;                 // Para detectar la TRANSICIÓN LoS→noLoS.
 
     // Stun (linterna)
     float stunTimer;
@@ -290,17 +321,29 @@ public class EnemyAIBase : MonoBehaviour
         bool postAttackLocked = postAttackWalkTimer > 0f;
 
         // ── VISIÓN REALISTA ─────────────────────────────────────────────
-        // Si el jugador está dentro del cono de visión con LoS clara, el enemigo
-        // INTERRUMPE todo (alert, patrol, investigate…) y persigue inmediatamente.
-        if (detection && detection.HasLineOfSight && player)
+        // Si el jugador está dentro del cono de visión con LoS clara Y es alcanzable por
+        // NavMesh, el enemigo INTERRUMPE todo (alert, patrol, investigate…) y persigue.
+        bool hasLoSNowThisFrame = detection != null && detection.HasLineOfSight && player != null;
+        bool reachableNow = IsPlayerReachable();
+
+        // Si estaba persiguiendo y el player se vuelve UNREACHABLE (encima de cajas, etc.),
+        // aborta el chase — perseguir es perder el tiempo, no podemos llegar.
+        bool isChasingNow = CurrentState == State.Chase || CurrentState == State.Attacking;
+        if (isChasingNow && abortChaseIfUnreachable && playerReachableMaxNavMeshDistance > 0f && !reachableNow)
+        {
+            KnownPlayerPos = null;
+            chaseMemoryTimer = 0f;
+            SetState(State.Patrol);
+        }
+        else if (hasLoSNowThisFrame && reachableNow)
         {
             KnownPlayerPos = player.position;
+            // Congelar la velocidad del player para el rastro tras perder LoS.
+            lastKnownPlayerVelocity = playerVelocity;
             // Registrar "vio al player ahora" → usado luego por la lógica del stuck.
             minoLastSawPlayerTime = Time.time;
 
             // Memoria proporcional a la distancia: cuanto más cerca, más recuerda.
-            // currentDistance ≤ closeDistance → memoria ×1.5
-            // currentDistance ≥ viewDistance  → memoria ×0.4
             float dist = Vector3.Distance(transform.position, player.position);
             chaseMemoryTimer = ComputeMemoryDuration(dist);
 
@@ -310,7 +353,7 @@ public class EnemyAIBase : MonoBehaviour
                     BeginChase(detection.Visibility); // interrupción dura
             }
         }
-        else if (CurrentState == State.Chase || CurrentState == State.Attacking)
+        else if (isChasingNow)
         {
             // Sin LoS pero seguimos persiguiendo durante chaseMemoryTimer (escalado por dificultad + distancia).
             chaseMemoryTimer -= Time.deltaTime;
@@ -327,6 +370,10 @@ public class EnemyAIBase : MonoBehaviour
                 KnownPlayerPos = null;
             }
         }
+
+        // Detectar transición LoS→noLoS para el "rastro" de TickChase.
+        if (hadLoSLastFrame && !hasLoSNowThisFrame) lastLoSLossTime = Time.time;
+        hadLoSLastFrame = hasLoSNowThisFrame;
 
         TickPlayerVelocityEstimate();
         TickSpeedSmoothing();
@@ -810,18 +857,32 @@ public class EnemyAIBase : MonoBehaviour
         if (!player) return;
 
         // ── Lead targeting (predicción) ─────────────────────────────────────
-        // Si tenemos LoS (KnownPlayerPos == player.position fresh) usamos predicción.
-        // Si NO tenemos LoS pero KnownPlayerPos sigue válido, no predecimos (sería ruido).
+        // Si tenemos LoS usamos predicción con la velocidad actual del player.
+        // Si NO tenemos LoS pero KnownPlayerPos sigue válido, usamos un "rastro" —
+        // extendemos el destino en la dirección de la velocidad que el player TENÍA
+        // cuando lo perdimos de vista. Decae con el tiempo (trailDecaySeconds).
         Vector3 basePoint = KnownPlayerPos ?? player.position;
         bool hasLoSNow = detection != null && detection.HasLineOfSight;
         if (hasLoSNow && chaseLeadTime > 0f)
         {
             Vector3 lead = playerVelocity * chaseLeadTime;
-            // Solo aporta XZ (la altura la marca el navmesh).
             lead.y = 0f;
             if (lead.magnitude > chaseMaxLeadDistance)
                 lead = lead.normalized * chaseMaxLeadDistance;
             basePoint += lead;
+        }
+        else if (!hasLoSNow && trailExtensionDistance > 0f && lastKnownPlayerVelocity.sqrMagnitude > 0.04f)
+        {
+            // RASTRO: persigue un poco "a la nada" en la dirección donde IBA el player.
+            // El offset decae con el tiempo desde que perdimos LoS, así no nos pasamos.
+            float age = Time.time - lastLoSLossTime;
+            float decay = Mathf.Clamp01(1f - age / Mathf.Max(0.01f, trailDecaySeconds));
+            if (decay > 0f)
+            {
+                Vector3 trail = lastKnownPlayerVelocity.normalized * trailExtensionDistance * decay;
+                trail.y = 0f;
+                basePoint += trail;
+            }
         }
 
         Vector3 targetPoint = basePoint;
@@ -1189,9 +1250,23 @@ public class EnemyAIBase : MonoBehaviour
         KnownPlayerPos = null;
         chaseMemoryTimer = 0f;
 
-        // SFX que telegrafía la reaparición — el player escucha "algo se ha movido".
-        if (minotaurTpVolume > 0f)
-            AudioManager.Instance?.PlaySFX(SFXId.MinotaurTP, transform.position, minotaurTpVolume);
+        // ── SFX MinotaurTP ───────────────────────────────────────────────
+        // Va a un AudioSource DEDICADO (no al pool genérico) con rolloff lineal y maxDistance
+        // amplio, así suena fuerte y se oye desde lejos. Si el player está usando la spy cam,
+        // omitir — el TP sonaría "desde dentro" del mino sin sentido.
+        bool playerInSpyCam = SpyCamController.Instance != null && SpyCamController.Instance.IsActive;
+        if (minotaurTpVolume > 0f && (!minotaurTpSkipIfSpyCam || !playerInSpyCam))
+        {
+            PlayMinotaurTpSound();
+        }
+
+        // CameraShake del TP — leve si el player está lejos del mino (>12m), fuerte si está cerca.
+        // La atenuación por distancia del propio CameraShake (maxDistance=30, minDistance=1.5,
+        // falloffPower=1.4) hace que a 12m la intensidad efectiva sea ≈53% de la base.
+        if (tpShakeIntensity > 0f && !playerInSpyCam)
+        {
+            CameraShake.Shake(transform.position, tpShakeIntensity, tpShakeDuration);
+        }
 
         if (player == null) { SetState(State.Patrol); return; }
 
@@ -1207,6 +1282,60 @@ public class EnemyAIBase : MonoBehaviour
         {
             SetState(State.Patrol);
         }
+    }
+
+    /// <summary>
+    /// Reproduce el SFX MinotaurTP en el AudioSource dedicado (rolloff Linear, maxDistance amplio).
+    /// Si está activa la pausa de IdleBreath, pausa el loop durante la duración del clip y lo
+    /// reanuda al terminar — el gruñido del TP queda limpio sin breath encima.
+    /// </summary>
+    void PlayMinotaurTpSound()
+    {
+        EnsureTpAudioSource();
+        if (tpAudioSource == null) return;
+        var clip = AudioManager.Instance != null ? AudioManager.Instance.GetClip(SFXId.MinotaurTP) : null;
+        if (clip == null) return;
+
+        // Re-aplica parámetros por si el usuario los cambió en el inspector en runtime.
+        tpAudioSource.transform.position = transform.position;
+        tpAudioSource.minDistance = Mathf.Max(0.1f, minotaurTpFullVolumeDistance);
+        tpAudioSource.maxDistance = Mathf.Max(tpAudioSource.minDistance + 1f, minotaurTpMaxDistance);
+        tpAudioSource.rolloffMode = AudioRolloffMode.Linear;
+        tpAudioSource.spatialBlend = 1f;
+        tpAudioSource.PlayOneShot(clip, minotaurTpVolume);
+
+        // Pausar el loop de IdleBreath mientras dura el TP.
+        if (minotaurTpPausesIdleBreath && minotaurSource != null && idleBreathActive)
+        {
+            if (breathPauseCo != null) StopCoroutine(breathPauseCo);
+            breathPauseCo = StartCoroutine(PauseIdleBreathDuringTp(clip.length));
+        }
+    }
+
+    void EnsureTpAudioSource()
+    {
+        if (tpAudioSource != null) return;
+        var go = new GameObject("AS_MinotaurTP");
+        go.transform.SetParent(transform, false);
+        tpAudioSource = go.AddComponent<AudioSource>();
+        tpAudioSource.playOnAwake = false;
+        tpAudioSource.spatialBlend = 1f;
+        tpAudioSource.rolloffMode = AudioRolloffMode.Linear;
+        tpAudioSource.minDistance = minotaurTpFullVolumeDistance;
+        tpAudioSource.maxDistance = minotaurTpMaxDistance;
+        tpAudioSource.dopplerLevel = 0f;
+        // Routear por el grupo SFX del AudioManager si hay mixer (volumen Master/SFX respetado).
+        // Si el AudioManager no expone el group, queda sin routing (volumen master global).
+    }
+
+    IEnumerator PauseIdleBreathDuringTp(float duration)
+    {
+        if (minotaurSource == null) yield break;
+        minotaurSource.Pause();
+        yield return new WaitForSeconds(Mathf.Max(0.1f, duration));
+        if (minotaurSource != null && idleBreathActive)
+            minotaurSource.UnPause();
+        breathPauseCo = null;
     }
 
     /// <summary>Devuelve true si el portal activo existe Y el punto está dentro de su zona segura.</summary>
@@ -1318,6 +1447,18 @@ public class EnemyAIBase : MonoBehaviour
         if (Physics.Raycast(from, dir, dist - 0.2f, scenarioOccluderMask, QueryTriggerInteraction.Ignore))
             return false;
         return true;
+    }
+
+    /// <summary>
+    /// True si el player está sobre el NavMesh o a menos de <see cref="playerReachableMaxNavMeshDistance"/>m
+    /// de él. Si está encima de cajas/mesas/tejados fuera del navmesh y no hay punto cercano,
+    /// el mino NO puede llegar y NO debería intentar perseguirlo.
+    /// </summary>
+    bool IsPlayerReachable()
+    {
+        if (player == null) return false;
+        if (playerReachableMaxNavMeshDistance <= 0f) return true; // desactivado: siempre reachable
+        return NavMesh.SamplePosition(player.position, out _, playerReachableMaxNavMeshDistance, NavMesh.AllAreas);
     }
 
     /// <summary>
